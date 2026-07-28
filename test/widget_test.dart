@@ -3,7 +3,7 @@ import 'package:itscans/app.dart';
 
 void main() {
   testWidgets('App boots and shows the home screen', (tester) async {
-    await tester.pumpWidget(const IT SCANSApp());
+    await tester.pumpWidget(const ItScansApp());
     expect(find.textContaining('IT SCANS'), findsOneWidget);
   });
 }

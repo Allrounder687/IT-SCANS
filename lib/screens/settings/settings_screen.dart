@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/library_provider.dart';
+import '../../providers/accessibility_provider.dart';
 import '../../core/theme.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -33,6 +34,8 @@ class SettingsScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(24),
             children: [
+              _buildAccessibilitySection(context),
+              const SizedBox(height: 32),
               _buildGoogleAccountSection(context, auth),
               const SizedBox(height: 32),
               if (auth.isSignedIn) _buildSyncSettingsSection(context, auth),
@@ -40,6 +43,75 @@ class SettingsScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildAccessibilitySection(BuildContext context) {
+    return Consumer<AccessibilityProvider>(
+      builder: (context, accessibility, child) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: appSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: appLine),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.accessibility_new, color: appAccent, size: 28),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Accessibility',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Large Text',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Increase text size and show quick-toggle button on Home Screen',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: appTextMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: accessibility.isLargeTextEnabled,
+                    onChanged: (val) => accessibility.setLargeText(val),
+                    activeColor: appAccent,
+                    inactiveTrackColor: appBackground,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

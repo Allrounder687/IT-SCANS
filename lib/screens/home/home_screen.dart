@@ -5,6 +5,7 @@ import '../../models/scan_document.dart';
 import '../../providers/library_provider.dart';
 import '../../providers/monetization_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/accessibility_provider.dart';
 import '../../services/scanner_service.dart';
 import '../../widgets/scan_button.dart';
 import '../../widgets/document_card.dart';
@@ -377,7 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: const Duration(seconds: 1),
       ),
     );
-
+    try {
       final ocrResult = await _ocrService.analyzeDocument(doc.filePath);
       String newName = ocrResult?.name ?? doc.name;
       if (newName != doc.name && mounted) {
@@ -469,6 +470,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           return const SizedBox.shrink();
                         },
                       ),
+                      Consumer<AccessibilityProvider>(
+                        builder: (context, accessibility, child) {
+                          if (accessibility.isLargeTextEnabled) {
+                            return IconButton(
+                              icon: const Icon(Icons.text_increase, color: appAccent),
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                accessibility.toggleLargeText();
+                              },
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                       IconButton(
                         icon: const Icon(Icons.settings, color: appTextMuted),
                         onPressed: () {
@@ -483,6 +498,68 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              Consumer<LibraryProvider>(
+                builder: (context, library, child) {
+                  return TextField(
+                    style: GoogleFonts.inter(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Search documents...',
+                      hintStyle: GoogleFonts.inter(color: appTextMuted),
+                      prefixIcon: const Icon(Icons.search, color: appTextMuted),
+                      filled: true,
+                      fillColor: appSurface,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (val) => library.setSearchQuery(val),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 36,
+                child: Consumer<LibraryProvider>(
+                  builder: (context, library, child) {
+                    final categories = ['All', 'Receipts', 'Invoices', 'IDs', 'Taxes', 'Notes', 'Documents'];
+                    return ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: categories.length,
+                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final cat = categories[index];
+                        final isSelected = library.selectedCategory == cat;
+                        return GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            library.setCategory(cat);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? appAccent : appSurface,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Center(
+                              child: Text(
+                                cat,
+                                style: GoogleFonts.inter(
+                                  color: isSelected ? Colors.black : Colors.white,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

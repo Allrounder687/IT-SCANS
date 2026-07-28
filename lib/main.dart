@@ -7,6 +7,7 @@ import 'app.dart';
 import 'providers/library_provider.dart';
 import 'providers/monetization_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/accessibility_provider.dart';
 import 'services/storage_service.dart';
 import 'services/cloud_sync_service.dart';
 
@@ -32,6 +33,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => LibraryProvider(storageService)),
         ChangeNotifierProvider(create: (_) => MonetizationProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider(cloudSyncService, prefs)),
+        ChangeNotifierProvider(create: (_) => AccessibilityProvider(prefs)),
       ],
       child: const ItScansApp(),
     ),
