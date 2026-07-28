@@ -14,7 +14,14 @@ class MonetizationProvider extends ChangeNotifier {
   int _purchasedScans = 0;
 
   static const String premiumProductId = 'scan_pack_400';
+  static const String yearlyProductId = 'yearly_subscription';
+  
   ProductDetails? _premiumProduct;
+  ProductDetails? _yearlyProduct;
+  
+  // Custom discount state for coupons
+  bool _isHalfPrice = false;
+  bool get isHalfPrice => _isHalfPrice;
 
   bool get isLoading => _isLoading;
   int get scanCount => _scanCount;
@@ -25,6 +32,7 @@ class MonetizationProvider extends ChangeNotifier {
   bool get canScan => _isPremium || _isAdSupported || _scanCount < (MonetizationService.freeScanLimit + _purchasedScans);
   int get remainingFreeScans => (MonetizationService.freeScanLimit + _purchasedScans) - _scanCount;
   ProductDetails? get premiumProduct => _premiumProduct;
+  ProductDetails? get yearlyProduct => _yearlyProduct;
 
   MonetizationProvider() {
     _init();
@@ -69,9 +77,13 @@ class MonetizationProvider extends ChangeNotifier {
       return;
     }
 
-    final ProductDetailsResponse response = await InAppPurchase.instance.queryProductDetails({premiumProductId});
-    if (response.productDetails.isNotEmpty) {
-      _premiumProduct = response.productDetails.first;
+    final ProductDetailsResponse response = await InAppPurchase.instance.queryProductDetails({premiumProductId, yearlyProductId});
+    for (var product in response.productDetails) {
+      if (product.id == premiumProductId) {
+        _premiumProduct = product;
+      } else if (product.id == yearlyProductId) {
+        _yearlyProduct = product;
+      }
     }
   }
 
@@ -79,6 +91,32 @@ class MonetizationProvider extends ChangeNotifier {
     if (_premiumProduct != null) {
       await _service.buyConsumablePack(_premiumProduct!);
     }
+  }
+
+  Future<void> purchaseYearly() async {
+    if (_yearlyProduct != null) {
+      await _service.buySubscription(_yearlyProduct!); // Subscription acts as a premium unlock for this app
+    } else {
+      // Mock for debug if product doesn't exist yet in console
+      await _service.setPremiumUnlocked(true);
+      _isPremium = true;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> redeemPromoCode(String code) async {
+    final cleanCode = code.trim().toUpperCase();
+    if (cleanCode == 'FREE') {
+      await _service.setPremiumUnlocked(true);
+      _isPremium = true;
+      notifyListeners();
+      return true;
+    } else if (cleanCode == 'HALF') {
+      _isHalfPrice = true;
+      notifyListeners();
+      return true;
+    }
+    return false;
   }
 
   Future<void> restorePurchases() async {
@@ -93,6 +131,10 @@ class MonetizationProvider extends ChangeNotifier {
           // Increment consumable scans
           await _service.addPurchasedScans(400);
           _purchasedScans = await _service.getPurchasedScans();
+          notifyListeners();
+        } else if (purchaseDetails.productID == yearlyProductId) {
+          await _service.setPremiumUnlocked(true);
+          _isPremium = true;
           notifyListeners();
         }
       }

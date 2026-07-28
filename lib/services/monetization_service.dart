@@ -66,6 +66,11 @@ class MonetizationService {
     await InAppPurchase.instance.buyConsumable(purchaseParam: purchaseParam, autoConsume: true);
   }
 
+  Future<void> buySubscription(ProductDetails productDetails) async {
+    final PurchaseParam purchaseParam = PurchaseParam(productDetails: productDetails);
+    await InAppPurchase.instance.buyNonConsumable(purchaseParam: purchaseParam);
+  }
+
   Future<void> completePurchase(PurchaseDetails purchaseDetails) async {
     if (purchaseDetails.pendingCompletePurchase) {
       await _iap.completePurchase(purchaseDetails);
