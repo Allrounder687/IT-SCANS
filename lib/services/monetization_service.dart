@@ -5,8 +5,10 @@ class MonetizationService {
   static const String _scanCountKey = 'itscans_scan_count';
   static const String _premiumUnlockedKey = 'itscans_premium_unlocked';
   
-  // Production limit per PRODUCT.md
-  static const int freeScanLimit = 400; 
+  // Production limit per PRODUCT.md (Set to 0 for debugging)
+  static const int freeScanLimit = 0; 
+  static const String _adSupportedKey = 'is_ad_supported';
+  static const String _purchasedScansKey = 'purchased_scans';
   
   final InAppPurchase _iap = InAppPurchase.instance;
 
@@ -37,9 +39,31 @@ class MonetizationService {
     return await _iap.isAvailable();
   }
 
-  Future<void> buyPremiumUnlock(ProductDetails productDetails) async {
+  Future<bool> isAdSupported() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_adSupportedKey) ?? false;
+  }
+
+  Future<void> setAdSupported(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_adSupportedKey, value);
+  }
+
+  Future<int> getPurchasedScans() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_purchasedScansKey) ?? 0;
+  }
+
+  Future<void> addPurchasedScans(int amount) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getInt(_purchasedScansKey) ?? 0;
+    await prefs.setInt(_purchasedScansKey, current + amount);
+  }
+
+  Future<void> buyConsumablePack(ProductDetails productDetails) async {
     final PurchaseParam purchaseParam = PurchaseParam(productDetails: productDetails);
-    await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+    // Use buyConsumable for consumable purchases
+    await InAppPurchase.instance.buyConsumable(purchaseParam: purchaseParam, autoConsume: true);
   }
 
   Future<void> completePurchase(PurchaseDetails purchaseDetails) async {

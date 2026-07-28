@@ -10,16 +10,20 @@ class MonetizationProvider extends ChangeNotifier {
   bool _isLoading = true;
   int _scanCount = 0;
   bool _isPremium = false;
+  bool _isAdSupported = false;
+  int _purchasedScans = 0;
 
-  // Hardcoded for Phase 3 per product requirements
-  static const String premiumProductId = 'premium_unlock';
+  static const String premiumProductId = 'scan_pack_400';
   ProductDetails? _premiumProduct;
 
   bool get isLoading => _isLoading;
   int get scanCount => _scanCount;
   bool get isPremium => _isPremium;
-  bool get canScan => _isPremium || _scanCount < MonetizationService.freeScanLimit;
-  int get remainingFreeScans => MonetizationService.freeScanLimit - _scanCount;
+  bool get isAdSupported => _isAdSupported;
+  int get purchasedScans => _purchasedScans;
+  
+  bool get canScan => _isPremium || _isAdSupported || _scanCount < (MonetizationService.freeScanLimit + _purchasedScans);
+  int get remainingFreeScans => (MonetizationService.freeScanLimit + _purchasedScans) - _scanCount;
   ProductDetails? get premiumProduct => _premiumProduct;
 
   MonetizationProvider() {
@@ -29,6 +33,8 @@ class MonetizationProvider extends ChangeNotifier {
   Future<void> _init() async {
     _scanCount = await _service.getScanCount();
     _isPremium = await _service.hasUnlockedPremium();
+    _isAdSupported = await _service.isAdSupported();
+    _purchasedScans = await _service.getPurchasedScans();
 
     _subscription = _service.purchaseStream.listen((purchaseDetailsList) {
       _listenToPurchaseUpdated(purchaseDetailsList);
@@ -44,11 +50,17 @@ class MonetizationProvider extends ChangeNotifier {
   }
 
   Future<void> incrementScanCount() async {
-    if (!_isPremium) {
+    if (!_isPremium && !_isAdSupported) {
       await _service.incrementScanCount();
       _scanCount = await _service.getScanCount();
       notifyListeners();
     }
+  }
+
+  Future<void> chooseAdSupportedTier() async {
+    await _service.setAdSupported(true);
+    _isAdSupported = true;
+    notifyListeners();
   }
 
   Future<void> _loadProducts() async {
@@ -65,7 +77,7 @@ class MonetizationProvider extends ChangeNotifier {
 
   Future<void> purchasePremium() async {
     if (_premiumProduct != null) {
-      await _service.buyPremiumUnlock(_premiumProduct!);
+      await _service.buyConsumablePack(_premiumProduct!);
     }
   }
 
@@ -78,8 +90,9 @@ class MonetizationProvider extends ChangeNotifier {
       if (purchaseDetails.status == PurchaseStatus.purchased || 
           purchaseDetails.status == PurchaseStatus.restored) {
         if (purchaseDetails.productID == premiumProductId) {
-          await _service.setPremiumUnlocked(true);
-          _isPremium = true;
+          // Increment consumable scans
+          await _service.addPurchasedScans(400);
+          _purchasedScans = await _service.getPurchasedScans();
           notifyListeners();
         }
       }

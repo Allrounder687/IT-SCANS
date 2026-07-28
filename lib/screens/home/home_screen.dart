@@ -17,6 +17,7 @@ import '../export/export_screen.dart';
 import '../paywall/paywall_screen.dart';
 import '../settings/settings_screen.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 enum ViewMode { stack, list, grid }
 
@@ -36,10 +37,13 @@ class _HomeScreenState extends State<HomeScreen> {
   ViewMode _viewMode = ViewMode.stack;
   bool _isUiVisible = true;
   double _lastScrollPosition = 0;
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
 
   @override
   void initState() {
     super.initState();
+    _loadBannerAd();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _runOcrSweep();
     });
@@ -65,6 +69,33 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     }
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111',
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          if (mounted) {
+            setState(() {
+              _isBannerAdLoaded = true;
+            });
+          }
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _bannerAd = null;
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
   }
 
   String _getGreeting(String? name) {
@@ -569,16 +600,51 @@ class _HomeScreenState extends State<HomeScreen> {
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: !_isSelectionMode 
-          ? SafeArea(
-              child: AnimatedSlide(
-                duration: const Duration(milliseconds: 300),
-                offset: _isUiVisible ? Offset.zero : const Offset(0, 1.5),
-                curve: Curves.easeOutCubic,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 24.0, top: 16.0),
-                  child: ScanButton(onPressed: _isScanning ? null : _startScan),
-                ),
-              ),
+          ? Consumer<MonetizationProvider>(
+              builder: (context, monetization, child) {
+                if (monetization.isAdSupported && _bannerAd == null && !_isBannerAdLoaded) {
+                  _loadBannerAd();
+                }
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SafeArea(
+                      bottom: !monetization.isAdSupported,
+                      child: AnimatedSlide(
+                        duration: const Duration(milliseconds: 300),
+                        offset: _isUiVisible ? Offset.zero : const Offset(0, 1.5),
+                        curve: Curves.easeOutCubic,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 24.0, top: 16.0),
+                          child: ScanButton(onPressed: _isScanning ? null : _startScan),
+                        ),
+                      ),
+                    ),
+                    if (monetization.isAdSupported)
+                      SafeArea(
+                        child: _isBannerAdLoaded && _bannerAd != null
+                            ? Container(
+                                color: appBackground,
+                                width: _bannerAd!.size.width.toDouble(),
+                                height: _bannerAd!.size.height.toDouble(),
+                                child: AdWidget(ad: _bannerAd!),
+                              )
+                            : Container(
+                                color: appBackground,
+                                height: 50,
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: appTextMuted),
+                                  ),
+                                ),
+                              ),
+                      ),
+                  ],
+                );
+              },
             )
           : null,
       ),
