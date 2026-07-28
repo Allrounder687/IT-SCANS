@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import '../models/scan_document.dart';
 import '../core/theme.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'rotating_subtitle.dart';
 
 class DocumentGridCard extends StatelessWidget {
   final ScanDocument document;
@@ -138,14 +140,16 @@ class DocumentGridCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(
-                          '${document.pageCount} pg • ${_formatDate(document.createdAt)}',
+                        child: RotatingSubtitle(
+                          texts: [
+                            '${document.pageCount} pg',
+                            _formatDate(document.createdAt),
+                            _getFileSize(document.filePath),
+                          ],
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 10,
                             color: appTextMuted,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (document.isSynced)
@@ -176,7 +180,21 @@ class DocumentGridCard extends StatelessWidget {
     } else if (difference.inDays <= 1 && now.day != date.day) {
       return 'Yesterday, $timeStr';
     } else {
-      return '${date.day}/${date.month}/${date.year}';
+      return '${date.day}/${date.month}/${date.year}, $timeStr';
+    }
+  }
+
+  String _getFileSize(String path) {
+    try {
+      final file = File(path);
+      if (!file.existsSync()) return '0 B';
+      final bytes = file.lengthSync();
+      if (bytes <= 0) return "0 B";
+      const suffixes = ["B", "KB", "MB", "GB", "TB"];
+      var i = (math.log(bytes) / math.log(1024)).floor();
+      return '${(bytes / math.pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
+    } catch (e) {
+      return '0 B';
     }
   }
 }

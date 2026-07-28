@@ -5,6 +5,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import '../models/scan_document.dart';
 import '../core/theme.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'rotating_subtitle.dart';
 
 class DocumentCard extends StatelessWidget {
   final ScanDocument document;
@@ -101,14 +102,16 @@ class DocumentCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          '${document.pageCount} page${document.pageCount > 1 ? 's' : ''} • ${_getFileSize(document.filePath)} • ${_formatDate(document.createdAt)}',
+                        child: RotatingSubtitle(
+                          texts: [
+                            '${document.pageCount} page${document.pageCount > 1 ? 's' : ''}',
+                            _formatDate(document.createdAt),
+                            _getFileSize(document.filePath),
+                          ],
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 12,
                             color: appTextMuted,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (document.isSynced) ...[
