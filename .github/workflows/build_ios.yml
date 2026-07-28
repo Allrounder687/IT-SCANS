@@ -23,7 +23,26 @@ jobs:
         run: flutter pub get
 
       - name: Build iOS without Code Signing
-        run: flutter build ios --release --no-codesign
+        run: |
+          # First, run flutter build to generate the Podfile (it might fail on signing)
+          flutter build ios --release --no-codesign || true
+          
+          # Inject code signing disable flags into the existing post_install block in the Podfile
+          cat << 'EOF' > patch_podfile.rb
+          require 'fileutils'
+          content = File.read('ios/Podfile')
+          new_content = content.gsub(/flutter_additional_ios_build_settings\(target\)/, "flutter_additional_ios_build_settings(target)\n      target.build_configurations.each do |config|\n        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'\n        config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'\n        config.build_settings['CODE_SIGN_IDENTITY'] = '-'\n        config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = '-'\n      end")
+          File.write('ios/Podfile', new_content)
+          EOF
+          ruby patch_podfile.rb
+          
+          # Re-run pod install
+          cd ios
+          pod install
+          cd ..
+          
+          # Build again, this time it will succeed
+          flutter build ios --release --no-codesign
 
       - name: Package into IPA
         run: |

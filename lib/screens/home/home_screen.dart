@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double _lastScrollPosition = 0;
   BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
+  InterstitialAd? _interstitialAd;
 
   @override
   void initState() {
@@ -92,9 +93,35 @@ class _HomeScreenState extends State<HomeScreen> {
     )..load();
   }
 
+  void _loadInterstitialAd() {
+    InterstitialAd.load(
+      adUnitId: 'ca-app-pub-3940256099942544/1033173712',
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          ad.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              _loadInterstitialAd();
+            },
+            onAdFailedToShowFullScreenContent: (ad, err) {
+              ad.dispose();
+              _loadInterstitialAd();
+            },
+          );
+          _interstitialAd = ad;
+        },
+        onAdFailedToLoad: (err) {
+          _interstitialAd = null;
+        },
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _bannerAd?.dispose();
+    _interstitialAd?.dispose();
     super.dispose();
   }
 
@@ -173,6 +200,13 @@ class _HomeScreenState extends State<HomeScreen> {
           }
           
           if (mounted) {
+            // Show Interstitial ad every 2 scans for free ad-supported users
+            if (monetization.isAdSupported && (monetization.scanCount % 2 == 0)) {
+              if (_interstitialAd != null) {
+                _interstitialAd!.show();
+              }
+            }
+
             await Navigator.push(
               context,
               MaterialPageRoute(
@@ -404,14 +438,46 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.settings, color: appTextMuted),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                      );
-                    },
+                  Row(
+                    children: [
+                      Consumer<MonetizationProvider>(
+                        builder: (context, monetization, child) {
+                          if (monetization.isAdSupported && !monetization.isPremium) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PaywallScreen()));
+                                },
+                                icon: const Icon(Icons.workspace_premium, color: appAccent, size: 20),
+                                label: Text(
+                                  'Upgrade',
+                                  style: GoogleFonts.inter(
+                                    color: appAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  backgroundColor: appAccent.withOpacity(0.1),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                ),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.settings, color: appTextMuted),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

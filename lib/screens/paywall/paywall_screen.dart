@@ -63,7 +63,7 @@ class PaywallScreen extends StatelessWidget {
                         const SizedBox(height: 12),
                         _buildChoiceCard(
                           title: 'Buy 400 Scans',
-                          subtitle: 'No subscriptions. Ad-free.',
+                          subtitle: 'More than enough for an average year! No subs.',
                           price: monetization.premiumProduct?.price ?? '\$1.99',
                           icon: Icons.receipt_long,
                           color: appSurface,
@@ -77,7 +77,7 @@ class PaywallScreen extends StatelessWidget {
                         const SizedBox(height: 12),
                         _buildChoiceCard(
                           title: '1-Year VIP',
-                          subtitle: 'Unlimited scans & Ad-free.',
+                          subtitle: 'Buy the dev team a coffee and enjoy absolute freedom. ❤️',
                           price: monetization.isHalfPrice 
                               ? '\$5.00/yr' 
                               : (monetization.yearlyProduct?.price ?? '\$10.00/yr'),
