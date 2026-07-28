@@ -106,9 +106,11 @@ class MonetizationProvider extends ChangeNotifier {
 
   Future<bool> redeemPromoCode(String code) async {
     final cleanCode = code.trim().toUpperCase();
-    if (cleanCode == 'FREE') {
+    if (cleanCode == 'FREE' || cleanCode == 'SYEDS') {
       await _service.setPremiumUnlocked(true);
+      await _service.setAdSupported(false);
       _isPremium = true;
+      _isAdSupported = false;
       notifyListeners();
       return true;
     } else if (cleanCode == 'HALF') {

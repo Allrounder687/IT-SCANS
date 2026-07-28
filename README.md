@@ -8,6 +8,7 @@ Designed around **Zero Cognitive Load**: one obvious action per screen, immersiv
 > for humans; `CLAUDE.md` is the steering doc with the rules and checklist.
 
 ## Premium Features
+- **Flexible Monetization**: Offers 100 free scans before gracefully transitioning to a 3-tier choice (Ad-Supported, 400 Consumable Scans, or 1-Year VIP) to support the dev team.
 - **Contextual Auto-Naming**: Uses offline ML Kit Text Recognition to read the first page of a scan and automatically names the document based on its content (e.g. "Invoice 2023").
 - **Private Cloud Sync**: Securely backs up documents to the user's hidden Google Drive `appDataFolder` (zero external servers used).
 - **Smart Deduplication**: Restores files with surgical precision by anchoring cloud IDs to local SQLite IDs, renaming conflicts instead of duplicating them.

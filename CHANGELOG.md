@@ -8,6 +8,9 @@ made — not batched later.
 ## [Unreleased]
 
 ### Added
+- **3-Tier Monetization Model**: Pivoted from a single premium unlock to a flexible Freemium model featuring 100 free scans, followed by a choice of Ad-Supported access, a 400 Scan Pack, or a 1-Year VIP Subscription.
+- **AdMob Integration**: Added Google Mobile Ads SDK. Ad-supported users now see a banner on the home screen and an interstitial ad every 2 scans.
+- **Custom Promo Codes**: Added an internal coupon system to the Paywall, allowing the redemption of secret codes (e.g., `FREE`, `SYEDS`) for instant Premium unlocks or discounts.
 - **ML Kit OCR Auto-Naming**: Scans are now automatically named based on the most prominent text found on the first page using offline machine learning.
 - **Swipe Actions**: Added Apple-style swipe-to-delete with red backgrounds and heavy haptics.
 - **Dynamic Greetings**: The Home Screen header now greets the user based on their local time and connected Google account.

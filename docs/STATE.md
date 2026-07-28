@@ -12,7 +12,7 @@
 - [x] **Phase 0 — Scaffolding:** repo structure, docs, CI, lint config, skills, app identity, icon.
 - [x] **Phase 1 — Core scan loop:** `flutter_doc_scanner` wired end-to-end, local SQLite persistence.
 - [x] **Phase 2 — Designed UI:** Advanced animations, beam wipe, Fanned Stack layout, zero cognitive load.
-- [x] **Phase 3 — Monetization:** (Deferred to post-launch if needed)
+- [x] **Phase 3 — Monetization:** 3-Tier Freemium pivot, AdMob integration, and Coupon system.
 - [x] **Phase 4 — Store readiness:** Settings screen, privacy policy, release builds.
 - [x] **Phase 5 — Cloud Sync:** Complete Google Drive API integration, seamless backup and restore.
 - [x] **Phase 6 — Cloud Deduplication:** Advanced local SQLite DB vs Drive ID matching for perfect restore parity.
@@ -24,6 +24,7 @@
 - Massive UI/UX overhaul successfully completed. The app now features a "Zero Cognitive Load" aesthetic.
 - Google Drive Backup & Restore fully implemented and battle-tested for deduplication.
 - On-device Machine Learning (Google ML Kit) integrated for offline OCR contextual auto-naming.
+- Monetization fully implemented with a 3-Tier Freemium pivot (Ad-Supported, Consumables, and Subscriptions) + Custom Promo Codes.
 
 ## What's in progress
 

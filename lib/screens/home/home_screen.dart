@@ -201,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
           
           if (mounted) {
             // Show Interstitial ad every 2 scans for free ad-supported users
-            if (monetization.isAdSupported && (monetization.scanCount % 2 == 0)) {
+            if (monetization.isAdSupported && !monetization.isPremium && (monetization.scanCount % 2 == 0)) {
               if (_interstitialAd != null) {
                 _interstitialAd!.show();
               }
@@ -668,7 +668,9 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: !_isSelectionMode 
           ? Consumer<MonetizationProvider>(
               builder: (context, monetization, child) {
-                if (monetization.isAdSupported && _bannerAd == null && !_isBannerAdLoaded) {
+                final showAds = monetization.isAdSupported && !monetization.isPremium;
+                
+                if (showAds && _bannerAd == null && !_isBannerAdLoaded) {
                   _loadBannerAd();
                 }
 
@@ -676,7 +678,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SafeArea(
-                      bottom: !monetization.isAdSupported,
+                      bottom: !showAds,
                       child: AnimatedSlide(
                         duration: const Duration(milliseconds: 300),
                         offset: _isUiVisible ? Offset.zero : const Offset(0, 1.5),
@@ -687,7 +689,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                    if (monetization.isAdSupported)
+                    if (showAds)
                       SafeArea(
                         child: _isBannerAdLoaded && _bannerAd != null
                             ? Container(
