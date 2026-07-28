@@ -1,0 +1,29 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+.pub-cache/
+.pub/
+*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Secrets — never commit these
+android/key.properties
+android/app/google-services.json
+*.jks
+*.keystore
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/

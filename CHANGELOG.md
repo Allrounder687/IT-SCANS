@@ -1,0 +1,41 @@
+# Changelog
+
+All notable changes to this project are documented here. Format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Every change that
+alters app behavior gets an entry under `[Unreleased]` at the time it's
+made — not batched later.
+
+## [Unreleased]
+
+### Added
+- **ML Kit OCR Auto-Naming**: Scans are now automatically named based on the most prominent text found on the first page using offline machine learning.
+- **Swipe Actions**: Added Apple-style swipe-to-delete with red backgrounds and heavy haptics.
+- **Dynamic Greetings**: The Home Screen header now greets the user based on their local time and connected Google account.
+- **Kebab Menus**: Added explicit 3-dot menus to all document cards to improve discoverability for renaming and deleting.
+- **Immersive Scrolling**: The top header and bottom scan button now smoothly animate away when scrolling down to maximize screen real estate.
+- **Google Drive Sync**: Complete backup and restore functionality using the private `appDataFolder` in Google Drive.
+- **Smart Deduplication**: Upgraded SQLite database to v3 to store Drive IDs, allowing the app to perfectly anchor and rename conflicting files upon restoration without duplicating them.
+- **Haptic Grouping**: Deployed granular tactile feedback across the entire app interface.
+- **Fanned Stack Layout**: A visually striking, overlapping stack layout for recent documents.
+
+### Changed
+- Moved the main "Scan Document" button to the `bottomNavigationBar` for easier one-handed reachability.
+- Upgraded `compileSdk` to 36 and `minSdk` to 24 to support modern ML Kit libraries.
+- Removed the Settings View Mode popup in favor of a zero-cognitive-load instant toggle button.
+
+### Fixed
+- Fixed build failures caused by outdated Kotlin Gradle Plugins in external dependencies by injecting a global SDK override script.
+
+---
+
+<!--
+Template for a release entry, when the time comes:
+
+## [0.1.0] - YYYY-MM-DD
+### Added
+- ...
+### Changed
+- ...
+### Fixed
+- ...
+-->
