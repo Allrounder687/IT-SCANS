@@ -7,13 +7,46 @@ class LibraryProvider extends ChangeNotifier {
   final StorageService _storageService;
   List<ScanDocument> _documents = [];
   bool _isLoading = true;
+  String _selectedCategory = 'All';
+  String _searchQuery = '';
 
   LibraryProvider(this._storageService) {
     _loadDocuments();
   }
 
-  List<ScanDocument> get documents => _documents;
+  List<ScanDocument> get documents {
+    var filtered = _documents;
+    if (_selectedCategory != 'All') {
+      filtered = filtered.where((d) => d.category == _selectedCategory).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((d) {
+        final matchesName = d.name.toLowerCase().contains(query);
+        final matchesText = d.extractedText?.toLowerCase().contains(query) ?? false;
+        return matchesName || matchesText;
+      }).toList();
+    }
+    return filtered;
+  }
+  
+  String get selectedCategory => _selectedCategory;
+  String get searchQuery => _searchQuery;
   bool get isLoading => _isLoading;
+
+  void setCategory(String category) {
+    if (_selectedCategory != category) {
+      _selectedCategory = category;
+      notifyListeners();
+    }
+  }
+
+  void setSearchQuery(String query) {
+    if (_searchQuery != query) {
+      _searchQuery = query;
+      notifyListeners();
+    }
+  }
 
   Future<void> _loadDocuments() async {
     _documents = await _storageService.getScanDocuments();
@@ -84,6 +117,8 @@ class LibraryProvider extends ChangeNotifier {
         pageCount: oldDoc.pageCount,
         filePath: oldDoc.filePath,
         createdAt: oldDoc.createdAt,
+        category: oldDoc.category,
+        extractedText: oldDoc.extractedText,
       );
       notifyListeners();
     }
@@ -103,6 +138,8 @@ class LibraryProvider extends ChangeNotifier {
         createdAt: oldDoc.createdAt,
         isSynced: isSynced,
         driveId: driveId ?? oldDoc.driveId,
+        category: oldDoc.category,
+        extractedText: oldDoc.extractedText,
       );
       notifyListeners();
     }

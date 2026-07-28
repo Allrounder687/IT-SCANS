@@ -18,7 +18,7 @@ class StorageService {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE scans(
@@ -28,7 +28,9 @@ class StorageService {
             filePath TEXT,
             createdAt TEXT,
             isSynced INTEGER DEFAULT 0,
-            driveId TEXT
+            driveId TEXT,
+            category TEXT,
+            extractedText TEXT
           )
         ''');
       },
@@ -38,6 +40,10 @@ class StorageService {
         }
         if (oldVersion < 3) {
           await db.execute('ALTER TABLE scans ADD COLUMN driveId TEXT');
+        }
+        if (oldVersion < 4) {
+          await db.execute('ALTER TABLE scans ADD COLUMN category TEXT');
+          await db.execute('ALTER TABLE scans ADD COLUMN extractedText TEXT');
         }
       },
     );

@@ -7,6 +7,8 @@ class ScanDocument {
     required this.createdAt,
     this.isSynced = false,
     this.driveId,
+    this.category,
+    this.extractedText,
   });
 
   final String id;
@@ -16,6 +18,8 @@ class ScanDocument {
   final DateTime createdAt;
   final bool isSynced;
   final String? driveId;
+  final String? category;
+  final String? extractedText;
 
   factory ScanDocument.fromMap(Map<String, dynamic> map) {
     return ScanDocument(
@@ -26,6 +30,8 @@ class ScanDocument {
       createdAt: DateTime.parse(map['createdAt'] as String),
       isSynced: (map['isSynced'] as int?) == 1,
       driveId: map['driveId'] as String?,
+      category: map['category'] as String?,
+      extractedText: map['extractedText'] as String?,
     );
   }
 
@@ -38,6 +44,8 @@ class ScanDocument {
       'createdAt': createdAt.toIso8601String(),
       'isSynced': isSynced ? 1 : 0,
       'driveId': driveId,
+      'category': category,
+      'extractedText': extractedText,
     };
   }
 }

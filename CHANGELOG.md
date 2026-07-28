@@ -8,6 +8,7 @@ made — not batched later.
 ## [Unreleased]
 
 ### Added
+- **Unsigned iOS Build Pipeline**: Implemented a fully automated GitHub Actions workflow (`build_ios.yml`) that bypasses Xcode codesigning requirements. This allows building and packaging an unsigned `.ipa` for jailbroken devices directly from the repository without a paid Apple Developer account.
 - **3-Tier Monetization Model**: Pivoted from a single premium unlock to a flexible Freemium model featuring 100 free scans, followed by a choice of Ad-Supported access, a 400 Scan Pack, or a 1-Year VIP Subscription.
 - **AdMob Integration**: Added Google Mobile Ads SDK. Ad-supported users now see a banner on the home screen and an interstitial ad every 2 scans.
 - **Custom Promo Codes**: Added an internal coupon system to the Paywall, allowing the redemption of secret codes (e.g., `FREE`, `SYEDS`) for instant Premium unlocks or discounts.

@@ -19,6 +19,17 @@ Designed around **Zero Cognitive Load**: one obvious action per screen, immersiv
 See `docs/STATE.md` — this is the living source of truth for what phase the
 project is in and what's done vs. in progress.
 
+## iOS (Jailbroken Devices)
+
+We use a fully automated GitHub Actions pipeline to build an **unsigned `.ipa`** suitable for sideloading on jailbroken iOS devices (e.g., via Filza, TrollStore, or AppSync). 
+Because the build is unsigned, it bypasses the need for an Apple Developer Account.
+
+To download the latest build:
+1. Go to the **Actions** tab on this repository.
+2. Select the latest successful run of the **Build Unsigned iOS IPA** workflow.
+3. Scroll down to the **Artifacts** section and download the `IT-SCANS-Unsigned-IPA`.
+4. Transfer the zip to your device, extract it, and install the `.ipa` using your preferred jailbreak utility.
+
 ## Prerequisites
 
 - Flutter SDK (stable channel) — [install guide](https://docs.flutter.dev/get-started/install)

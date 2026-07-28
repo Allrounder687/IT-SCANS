@@ -6,9 +6,15 @@ you need — do not skip the linked docs when they're relevant to your task.
 
 ## What this project is
 
-A Flutter document-scanner app for Android (CamScanner-style): scan → crop/
+A Flutter document-scanner app for Android and iOS (CamScanner-style): scan → crop/
 enhance (via ML Kit Document Scanner) → save/export as PDF → optional OCR and
 cloud sync behind a paid tier. Full product context: `docs/PRODUCT.md`.
+
+## CI/CD & iOS Builds
+
+The project uses GitHub Actions (`.github/workflows/build_ios.yml`) to automatically build and package unsigned `.ipa` files for jailbroken devices.
+- **DO NOT** try to code-sign the iOS app or add a `DEVELOPMENT_TEAM` to `project.pbxproj` (which will fail in CI).
+- The workflow intentionally bypasses Flutter's internal Xcode validator by building the Dart AOT via `flutter build ios --release --no-codesign || true` and then compiling the native app via `xcodebuild` directly with `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGNING_IDENTITY=""`.
 
 ## Golden rules for any agent working here
 

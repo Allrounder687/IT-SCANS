@@ -29,15 +29,18 @@ class ScannerService {
           filePath = filePath.substring(7);
         }
         
-        // Attempt OCR to get a smart name
-        String docName = await _ocrService.generateContextualName(filePath) ?? 'Scan ${DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' ')}';
-
+        // Generate a name contextually
+        final ocrResult = await _ocrService.analyzeDocument(filePath);
+        String docName = ocrResult?.name ?? 'Scan ${DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' ')}';
+        
         return ScanDocument(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           name: docName,
           pageCount: pageCount,
           filePath: filePath,
           createdAt: DateTime.now(),
+          category: ocrResult?.category ?? 'Documents',
+          extractedText: ocrResult?.fullText,
         );
       } else {
         throw Exception("Could not extract a valid file path from the scan result");

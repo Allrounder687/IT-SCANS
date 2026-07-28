@@ -61,7 +61,8 @@ class _HomeScreenState extends State<HomeScreen> {
     for (var doc in library.documents) {
       if (doc.name.startsWith('Scan 20') || doc.name.startsWith('Scan 2')) {
         try {
-          String newName = await _ocrService.generateContextualName(doc.filePath) ?? doc.name;
+          final ocrResult = await _ocrService.analyzeDocument(doc.filePath);
+          String newName = ocrResult?.name ?? doc.name;
           if (newName != doc.name && mounted) {
             await library.renameDocument(doc.id, newName);
           }
@@ -377,8 +378,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    try {
-      String newName = await _ocrService.generateContextualName(doc.filePath) ?? doc.name;
+      final ocrResult = await _ocrService.analyzeDocument(doc.filePath);
+      String newName = ocrResult?.name ?? doc.name;
       if (newName != doc.name && mounted) {
         await context.read<LibraryProvider>().renameDocument(doc.id, newName);
         HapticFeedback.lightImpact();
