@@ -10,6 +10,7 @@ class CloudSyncService {
     scopes: [
       drive.DriveApi.driveFileScope,
     ],
+    clientId: Platform.isIOS ? '133389928359-pqm3l00qprqqej2oqjc0vcp5tobbm7dj.apps.googleusercontent.com' : null,
   );
 
   GoogleSignInAccount? get currentUser => _googleSignIn.currentUser;

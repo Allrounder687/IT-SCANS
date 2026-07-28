@@ -1,28 +1,34 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class ExportService {
-  /// Saves the file to the public Downloads directory on Android.
+  /// Saves the file to the public Downloads directory on Android, and Documents on iOS.
   Future<String> saveToDownloads(String sourceFilePath, String preferredName) async {
     try {
-      // Android public Downloads directory
-      final downloadsDirectory = Directory('/storage/emulated/0/Download');
-      
-      if (!await downloadsDirectory.exists()) {
-        await downloadsDirectory.create(recursive: true);
+      Directory directory;
+      if (Platform.isAndroid) {
+        // Android public Downloads directory
+        directory = Directory('/storage/emulated/0/Download');
+        if (!await directory.exists()) {
+          await directory.create(recursive: true);
+        }
+      } else {
+        // iOS application documents directory (accessible via Files app if UIFileSharingEnabled=true)
+        directory = await getApplicationDocumentsDirectory();
       }
 
       final extension = p.extension(sourceFilePath);
       final safeName = preferredName.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '_');
       
       String fileName = '$safeName$extension';
-      String destinationPath = p.join(downloadsDirectory.path, fileName);
+      String destinationPath = p.join(directory.path, fileName);
       
       // Ensure unique filename
       int counter = 1;
       while (await File(destinationPath).exists()) {
         fileName = '${safeName}_$counter$extension';
-        destinationPath = p.join(downloadsDirectory.path, fileName);
+        destinationPath = p.join(directory.path, fileName);
         counter++;
       }
 
@@ -31,7 +37,7 @@ class ExportService {
       
       return destinationPath;
     } catch (e) {
-      throw Exception('Could not save to Downloads: $e');
+      throw Exception('Could not save file: $e');
     }
   }
 }
