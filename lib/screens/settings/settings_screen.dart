@@ -108,6 +108,26 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              if (accessibility.isLargeTextEnabled) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text('A', style: GoogleFonts.inter(color: appTextMuted, fontSize: 14)),
+                    Expanded(
+                      child: Slider(
+                        value: accessibility.textScaleFactor,
+                        min: 1.1,
+                        max: 1.75,
+                        divisions: 6,
+                        activeColor: appAccent,
+                        inactiveColor: appBackground,
+                        onChanged: (val) => accessibility.setTextScaleFactor(val),
+                      ),
+                    ),
+                    Text('A', style: GoogleFonts.inter(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ],
             ],
           ),
         );

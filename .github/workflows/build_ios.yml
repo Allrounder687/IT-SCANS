@@ -49,7 +49,10 @@ jobs:
           xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
           cd ..
 
-      - name: Package into IPA
+      - name: Install ldid
+        run: brew install ldid
+
+      - name: Package and Pseudo-sign into IPA
         run: |
           # Find the built Runner.app
           APP_PATH=$(find build ios -name "Runner.app" -type d | head -n 1)
@@ -60,6 +63,11 @@ jobs:
           
           mkdir -p Payload
           mv "$APP_PATH" Payload/
+          
+          # Pseudo-sign the binary for jailbroken devices so it doesn't get Killed: 9
+          echo "Pseudo-signing payload with ldid..."
+          ldid -S Payload/Runner.app/Runner
+          
           zip -r IT-SCANS.ipa Payload
 
       - name: Upload IPA Artifact

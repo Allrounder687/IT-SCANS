@@ -14,10 +14,10 @@ class ItScansApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       builder: (context, child) {
-        final isLargeText = context.watch<AccessibilityProvider>().isLargeTextEnabled;
+        final accessibility = context.watch<AccessibilityProvider>();
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: isLargeText ? const TextScaler.linear(1.25) : const TextScaler.linear(1.0),
+            textScaler: TextScaler.linear(accessibility.currentScale),
           ),
           child: child!,
         );
