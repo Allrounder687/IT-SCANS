@@ -39,6 +39,8 @@ class SettingsScreen extends StatelessWidget {
               _buildGoogleAccountSection(context, auth),
               const SizedBox(height: 32),
               if (auth.isSignedIn) _buildSyncSettingsSection(context, auth),
+              const SizedBox(height: 32),
+              _buildAboutSection(context),
             ],
           );
         },
@@ -342,6 +344,33 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAboutSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Column(
+        children: [
+          Text(
+            'IT SCANS',
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Made for family by Syed Faisal Majeed',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: appTextMuted,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

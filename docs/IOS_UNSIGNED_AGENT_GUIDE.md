@@ -94,3 +94,32 @@ If you add `google_mobile_ads`, the app will instantly crash on launch if the Ap
 <string>ca-app-pub-3940256099942544~1458002511</string> 
 <!-- Use Google's test ID during dev, swap for production later -->
 ```
+
+## 6. Advanced Features (Firebase, WebRTC, Audio, Push)
+When building more complex apps (like Music or WebRTC-based communication apps), iOS enforces strict sandboxing rules that differ significantly from Android:
+
+### Firebase Integration
+If the app uses Firebase, initializing it without the configuration file will cause a native crash.
+- You **MUST** ensure `GoogleService-Info.plist` is bundled in the Xcode project via `project.pbxproj`. If it is missing, `Firebase.initializeApp()` will crash the app instantly.
+
+### Background Audio (Music Apps)
+Unlike Android, iOS will suspend/kill your app the exact second it goes to the background. 
+- To play audio or music in the background, you **MUST** configure the `UIBackgroundModes` capability in `Info.plist`:
+```xml
+<key>UIBackgroundModes</key>
+<array>
+  <string>audio</string>
+</array>
+```
+
+### WebRTC / Blackboard / Calling
+WebRTC and calling features require strict permissions. The app will crash if these are missing when requested:
+- `NSMicrophoneUsageDescription`: Required for any audio capture/calls.
+- `NSCameraUsageDescription`: Required for video calls.
+- `NSLocalNetworkUsageDescription`: WebRTC often discovers local network peers. iOS 14+ requires this permission or it will silently block local network traffic.
+- **Background Calling**: VoIP calls require the `voip` flag in `UIBackgroundModes`. 
+
+### Push Notifications Constraints
+Apple Push Notification Service (APNs) requires a cryptographic handshake between the app's valid provisioning profile and Apple's servers. 
+- **Purely unsigned/pseudo-signed apps cannot receive native APNs push notifications.** 
+- If you rely on push notifications (e.g., Firebase Cloud Messaging), they will silently fail on an unsigned app. As a workaround for unsigned apps, you must use persistent WebSockets or long-polling while the app is in the foreground, or use local notifications (`flutter_local_notifications`).
