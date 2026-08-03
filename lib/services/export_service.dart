@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 class ExportService {
   /// Saves the file to the public Downloads directory on Android, and Documents on iOS.
@@ -35,9 +37,28 @@ class ExportService {
       final sourceFile = File(sourceFilePath);
       await sourceFile.copy(destinationPath);
       
+      _checkAndRequestReview();
+      
       return destinationPath;
     } catch (e) {
       throw Exception('Could not save file: $e');
+    }
+  }
+
+  Future<void> _checkAndRequestReview() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      int count = (prefs.getInt('exports_count') ?? 0) + 1;
+      await prefs.setInt('exports_count', count);
+      
+      if (count == 5 || count == 15) {
+        final InAppReview inAppReview = InAppReview.instance;
+        if (await inAppReview.isAvailable()) {
+          await inAppReview.requestReview();
+        }
+      }
+    } catch (e) {
+      // Ignore errors for organic review prompts
     }
   }
 }

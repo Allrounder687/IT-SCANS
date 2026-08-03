@@ -132,4 +132,18 @@ class CloudSyncService {
       return false;
     }
   }
+
+  Future<bool> deleteFile(String fileId) async {
+    final client = await _googleSignIn.authenticatedClient();
+    if (client == null) return false;
+
+    try {
+      final driveApi = drive.DriveApi(client);
+      await driveApi.files.delete(fileId);
+      return true;
+    } catch (e) {
+      debugPrint('Failed to delete file: $e');
+      return false;
+    }
+  }
 }

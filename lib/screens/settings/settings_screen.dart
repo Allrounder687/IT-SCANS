@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/library_provider.dart';
 import '../../providers/accessibility_provider.dart';
 import '../../core/theme.dart';
+import 'cloud_management_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -226,6 +227,30 @@ class SettingsScreen extends StatelessWidget {
                 child: Text(
                   'Sign Out',
                   style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CloudManagementScreen()),
+                  );
+                },
+                icon: const Icon(Icons.folder_shared, color: Colors.white),
+                label: Text(
+                  'Manage Cloud Data',
+                  style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: appLine),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
