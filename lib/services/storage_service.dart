@@ -88,6 +88,16 @@ class StorageService {
     );
   }
 
+  Future<void> updateDocumentCategory(String id, String category) async {
+    final db = await database;
+    await db.update(
+      'scans',
+      {'category': category},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<void> updateSyncStatus(String id, bool isSynced, {String? driveId}) async {
     final db = await database;
     

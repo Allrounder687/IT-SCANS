@@ -6,6 +6,8 @@ import '../../providers/library_provider.dart';
 import '../../providers/accessibility_provider.dart';
 import '../../core/theme.dart';
 import 'cloud_management_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -40,6 +42,8 @@ class SettingsScreen extends StatelessWidget {
               _buildGoogleAccountSection(context, auth),
               const SizedBox(height: 32),
               if (auth.isSignedIn) _buildSyncSettingsSection(context, auth),
+              const SizedBox(height: 32),
+              const _SecuritySection(),
               const SizedBox(height: 32),
               _buildAboutSection(context),
             ],
@@ -396,6 +400,120 @@ class SettingsScreen extends StatelessWidget {
               color: appTextMuted,
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecuritySection extends StatefulWidget {
+  const _SecuritySection();
+
+  @override
+  State<_SecuritySection> createState() => _SecuritySectionState();
+}
+
+class _SecuritySectionState extends State<_SecuritySection> {
+  bool _requireBiometrics = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _requireBiometrics = prefs.getBool('require_biometrics') ?? false;
+    });
+  }
+
+  Future<void> _toggleBiometrics(bool value) async {
+    if (value) {
+      final localAuth = LocalAuthentication();
+      final isAvailable = await localAuth.canCheckBiometrics || await localAuth.isDeviceSupported();
+      if (!isAvailable) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Biometrics not supported on this device', style: GoogleFonts.inter()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('require_biometrics', value);
+    setState(() {
+      _requireBiometrics = value;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: appSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: appLine),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.security, color: appAccent, size: 28),
+              const SizedBox(width: 12),
+              Text(
+                'Security',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'App Privacy Lock',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Require Face ID / Touch ID to open the app',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: appTextMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _requireBiometrics,
+                onChanged: _toggleBiometrics,
+                activeColor: appAccent,
+                inactiveTrackColor: appBackground,
+              ),
+            ],
           ),
         ],
       ),

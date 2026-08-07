@@ -184,11 +184,36 @@ class _HomeScreenState extends State<HomeScreen> {
           // Save document to library
           await context.read<LibraryProvider>().addDocument(doc);
           
-          // Instant Background AI Naming
+          // Instant Background AI Naming and Auto-Categorization
           _ocrService.analyzeDocument(doc.filePath).then((ocrResult) {
-            final newName = ocrResult?.name;
-            if (newName != null && newName != doc.name && mounted) {
-              context.read<LibraryProvider>().renameDocument(doc.id, newName);
+            if (ocrResult != null && mounted) {
+              final newName = ocrResult.name;
+              if (newName != doc.name) {
+                context.read<LibraryProvider>().renameDocument(doc.id, newName);
+              }
+              
+              // Smart Folders categorization
+              final text = ocrResult.text.toLowerCase();
+              String? category;
+              
+              if (text.contains('total') || text.contains('tax') || text.contains('receipt') || text.contains('amount due')) {
+                category = 'Receipts';
+              } else if (text.contains('invoice') || text.contains('due date') || text.contains('bill to')) {
+                category = 'Invoices';
+              } else if (text.contains('dob') || text.contains('expiry') || text.contains('license') || text.contains('passport') || text.contains('id card')) {
+                category = 'IDs';
+              }
+              
+              if (category != null) {
+                context.read<LibraryProvider>().updateDocumentCategory(doc.id, category);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Categorized as $category', style: GoogleFonts.inter()),
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: appSurface,
+                  ),
+                );
+              }
             }
           });
           

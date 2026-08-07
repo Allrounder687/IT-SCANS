@@ -7,6 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_auth
   firebase_core
   flutter_doc_scanner
+  local_auth_windows
   pdfx
   share_plus
   url_launcher_windows

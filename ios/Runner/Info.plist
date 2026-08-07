@@ -36,6 +36,8 @@
 		<string>IT SCANS requires access to your camera to scan documents.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>IT SCANS requires access to your photo library to import existing images.</string>
+		<key>NSFaceIDUsageDescription</key>
+		<string>IT SCANS uses Face ID / Touch ID to securely lock and protect your scanned documents.</string>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>

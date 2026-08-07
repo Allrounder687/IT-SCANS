@@ -4,6 +4,8 @@ import 'core/theme.dart';
 import 'screens/home/home_screen.dart';
 import 'providers/accessibility_provider.dart';
 
+import 'widgets/biometric_wrapper.dart';
+
 class ItScansApp extends StatelessWidget {
   const ItScansApp({super.key});
 
@@ -22,7 +24,7 @@ class ItScansApp extends StatelessWidget {
           child: child!,
         );
       },
-      home: const HomeScreen(),
+      home: const BiometricWrapper(child: HomeScreen()),
     );
   }
 }

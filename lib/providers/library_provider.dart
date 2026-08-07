@@ -136,6 +136,27 @@ class LibraryProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateDocumentCategory(String id, String newCategory) async {
+    await _storageService.updateDocumentCategory(id, newCategory);
+    
+    final docIndex = _documents.indexWhere((d) => d.id == id);
+    if (docIndex != -1) {
+      final oldDoc = _documents[docIndex];
+      _documents[docIndex] = ScanDocument(
+        id: oldDoc.id,
+        name: oldDoc.name,
+        pageCount: oldDoc.pageCount,
+        filePath: oldDoc.filePath,
+        createdAt: oldDoc.createdAt,
+        isSynced: oldDoc.isSynced,
+        driveId: oldDoc.driveId,
+        category: newCategory,
+        extractedText: oldDoc.extractedText,
+      );
+      notifyListeners();
+    }
+  }
+
   Future<void> updateSyncStatus(String id, bool isSynced, {String? driveId}) async {
     await _storageService.updateSyncStatus(id, isSynced, driveId: driveId);
     
