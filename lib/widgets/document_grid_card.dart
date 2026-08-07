@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
@@ -30,8 +31,53 @@ class DocumentGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
-      onLongPress: onRename,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      onLongPress: () {
+        if (isSelectionMode) return;
+        HapticFeedback.selectionClick();
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: appSurface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (context) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.share, color: Colors.blueAccent),
+                  title: Text('Open / Share', style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onTap();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.edit, color: Colors.white),
+                  title: Text('Rename', style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onRename();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: Text('Delete', style: GoogleFonts.inter(color: Colors.red, fontSize: 16)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onDelete();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
@@ -81,42 +127,7 @@ class DocumentGridCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (!isSelectionMode)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: PopupMenuButton<String>(
-                        icon: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.more_vert, color: Colors.white, size: 16),
-                        ),
-                        color: appSurface,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        onSelected: (value) {
-                          if (value == 'rename') onRename();
-                          if (value == 'delete') onDelete();
-                          if (value == 'autoname') onAutoName();
-                        },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'autoname',
-                            child: Text('Auto-Name (AI)', style: GoogleFonts.inter(color: Colors.blueAccent)),
-                          ),
-                          PopupMenuItem(
-                            value: 'rename',
-                            child: Text('Rename', style: GoogleFonts.inter(color: Colors.white)),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Delete', style: GoogleFonts.inter(color: Colors.red)),
-                          ),
-                        ],
-                      ),
-                    ),
+
                 ],
               ),
             ),

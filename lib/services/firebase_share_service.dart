@@ -1,0 +1,117 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'cloud_sync_service.dart';
+
+class FirebaseShareService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final CloudSyncService _syncService = CloudSyncService();
+
+  /// Uploads a PDF to the user's Google Drive, gets a public link, and creates a notification document in the recipient's inbox.
+  Future<bool> shareDocument(String pdfPath, String originalName, String recipientEmail) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null || user.email == null) {
+        debugPrint('Must be logged in to share.');
+        return false;
+      }
+
+      final file = File(pdfPath);
+      if (!await file.exists()) {
+        debugPrint('File does not exist.');
+        return false;
+      }
+
+      // 1. Upload to Google Drive and get public link
+      final uniqueId = DateTime.now().millisecondsSinceEpoch.toString();
+      final downloadUrl = await _syncService.uploadAndGetPublicLink(pdfPath, '${originalName}_$uniqueId.pdf');
+      
+      if (downloadUrl == null) {
+        debugPrint('Failed to upload to Google Drive.');
+        return false;
+      }
+
+      // 2. Create Inbox Document in Firestore
+      final recipientEmailLower = recipientEmail.toLowerCase().trim();
+      await _firestore
+          .collection('users')
+          .doc(recipientEmailLower)
+          .collection('inbox')
+          .doc(uniqueId)
+          .set({
+        'senderEmail': user.email,
+        'fileName': originalName,
+        'downloadUrl': downloadUrl,
+        'timestamp': FieldValue.serverTimestamp(),
+        'fileSize': await file.length(),
+        'isRead': false,
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint('Error sharing document: $e');
+      return false;
+    }
+  }
+
+  /// Returns a real-time stream of documents shared with the current user.
+  Stream<List<Map<String, dynamic>>> getInboxStream() {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) {
+      return const Stream.empty();
+    }
+
+    final myEmail = user.email!.toLowerCase().trim();
+    return _firestore
+        .collection('users')
+        .doc(myEmail)
+        .collection('inbox')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    });
+  }
+
+  /// Marks an inbox message as read.
+  Future<void> markAsRead(String messageId) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) return;
+
+    try {
+      final myEmail = user.email!.toLowerCase().trim();
+      await _firestore
+          .collection('users')
+          .doc(myEmail)
+          .collection('inbox')
+          .doc(messageId)
+          .update({'isRead': true});
+    } catch (e) {
+      debugPrint('Error marking as read: $e');
+    }
+  }
+
+  /// Deletes an inbox message (does not delete the underlying storage file to prevent affecting others if shared multiple times).
+  Future<void> deleteMessage(String messageId) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) return;
+
+    try {
+      final myEmail = user.email!.toLowerCase().trim();
+      await _firestore
+          .collection('users')
+          .doc(myEmail)
+          .collection('inbox')
+          .doc(messageId)
+          .delete();
+    } catch (e) {
+      debugPrint('Error deleting message: $e');
+    }
+  }
+}

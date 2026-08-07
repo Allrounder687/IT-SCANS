@@ -45,6 +45,14 @@ dependencies:
   google_mobile_ads: ^9.0.0
   in_app_review: ^2.0.9
 
+  # Firebase Inbox & Sharing
+  firebase_core: ^3.3.0
+  firebase_auth: ^5.1.4
+  cloud_firestore: ^5.2.1
+  open_filex: ^4.5.0
+  http: ^1.2.1
+  path: ^1.9.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

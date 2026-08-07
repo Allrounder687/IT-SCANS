@@ -6,6 +6,7 @@ import '../../providers/library_provider.dart';
 import '../../providers/monetization_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/accessibility_provider.dart';
+import '../../providers/inbox_provider.dart';
 import '../../services/scanner_service.dart';
 import '../../widgets/scan_button.dart';
 import '../../widgets/document_card.dart';
@@ -17,6 +18,7 @@ import '../../core/theme.dart';
 import '../export/export_screen.dart';
 import '../paywall/paywall_screen.dart';
 import '../settings/settings_screen.dart';
+import '../inbox/inbox_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -48,6 +50,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadBannerAd();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _runOcrSweep();
+      if (context.read<AuthProvider>().isSignedIn) {
+        context.read<InboxProvider>().startListening();
+      }
     });
   }
 
@@ -179,6 +184,14 @@ class _HomeScreenState extends State<HomeScreen> {
           // Save document to library
           await context.read<LibraryProvider>().addDocument(doc);
           
+          // Instant Background AI Naming
+          _ocrService.analyzeDocument(doc.filePath).then((ocrResult) {
+            final newName = ocrResult?.name;
+            if (newName != null && newName != doc.name && mounted) {
+              context.read<LibraryProvider>().renameDocument(doc.id, newName);
+            }
+          });
+          
           // Increment the scan counter
           await monetization.incrementScanCount();
           
@@ -285,6 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _toggleDocumentSelection(String id) {
+    HapticFeedback.selectionClick();
     setState(() {
       if (_selectedDocs.contains(id)) {
         _selectedDocs.remove(id);
@@ -298,37 +312,32 @@ class _HomeScreenState extends State<HomeScreen> {
     final count = _selectedDocs.length;
     if (count == 0) return;
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
+    HapticFeedback.heavyImpact();
+    final idsToDelete = Set<String>.from(_selectedDocs);
+    context.read<LibraryProvider>().deleteMultipleDocuments(idsToDelete);
+    
+    setState(() {
+      _isSelectionMode = false;
+      _selectedDocs.clear();
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$count scans deleted.', style: GoogleFonts.inter()),
         backgroundColor: appSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete $count Scans?', style: GoogleFonts.spaceGrotesk(color: Colors.white)),
-        content: Text(
-          'Are you sure you want to permanently delete these $count scans?',
-          style: GoogleFonts.inter(color: appTextMuted),
+        action: SnackBarAction(
+          label: 'UNDO',
+          textColor: appAccent,
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            for (var id in idsToDelete) {
+              context.read<LibraryProvider>().undoDelete(id);
+            }
+          },
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: GoogleFonts.inter(color: appTextMuted)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete', style: GoogleFonts.inter(color: Colors.red, fontWeight: FontWeight.bold)),
-          ),
-        ],
+        duration: const Duration(seconds: 4),
       ),
     );
-
-    if (confirm == true && mounted) {
-      HapticFeedback.heavyImpact();
-      await context.read<LibraryProvider>().deleteMultipleDocuments(_selectedDocs);
-      setState(() {
-        _isSelectionMode = false;
-        _selectedDocs.clear();
-      });
-    }
   }
 
   void _handleSingleDelete(ScanDocument doc) {
@@ -337,33 +346,23 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: appSurface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Delete Scan?', style: GoogleFonts.spaceGrotesk(color: Colors.white)),
-          content: Text(
-            'Are you sure you want to permanently delete "${doc.name}"?',
-            style: GoogleFonts.inter(color: appTextMuted),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: GoogleFonts.inter(color: appTextMuted)),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                context.read<LibraryProvider>().deleteDocument(doc.id);
-                HapticFeedback.heavyImpact();
-              },
-              child: Text('Delete', style: GoogleFonts.inter(color: Colors.red, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
+    HapticFeedback.heavyImpact();
+    context.read<LibraryProvider>().deleteDocument(doc.id);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Document deleted.', style: GoogleFonts.inter()),
+        backgroundColor: appSurface,
+        action: SnackBarAction(
+          label: 'UNDO',
+          textColor: appAccent,
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            context.read<LibraryProvider>().undoDelete(doc.id);
+          },
+        ),
+        duration: const Duration(seconds: 4),
+      ),
     );
   }
 
@@ -482,6 +481,25 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           }
                           return const SizedBox.shrink();
+                        },
+                      ),
+                      Consumer<InboxProvider>(
+                        builder: (context, inbox, child) {
+                          final icon = const Icon(Icons.inbox_outlined, color: Colors.white);
+                          return IconButton(
+                            icon: inbox.unreadCount > 0
+                                ? Badge(
+                                    label: Text('${inbox.unreadCount}'),
+                                    child: icon,
+                                  )
+                                : icon,
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const InboxScreen()),
+                              );
+                            },
+                          );
                         },
                       ),
                       IconButton(

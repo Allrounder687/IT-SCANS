@@ -8,6 +8,13 @@ made — not batched later.
 ## [Unreleased]
 
 ### Added
+- **Zero Cognitive Load - Auto-Download Magic:** App silently listens for incoming documents via Firestore, downloads them from Google Drive, and instantly adds them to the library without manual intervention.
+- **Zero Cognitive Load - Unread Badges:** Inbox icon displays a red notification badge for unread documents.
+- **Zero Cognitive Load - Recent Contacts:** Direct sending now displays a sliding bottom sheet with recent contacts to avoid re-typing email addresses.
+- **Zero Cognitive Load - Social Media Sharing:** One-tap export to native OS share sheet for social media platforms (WhatsApp, Telegram, etc).
+- **Delightful UX - Instant AI Naming:** ML Kit OCR now runs instantly in the background after scanning to automatically rename documents without needing to press an "Auto-Name" button.
+- **Delightful UX - Long-Press Quick Actions:** Removed 3-dot menus in favor of intuitive, Apple-style long-press quick action menus for Open/Share, Rename, and Delete.
+- **Delightful UX - Instant Deletion & Undo:** Removed deletion confirmation dialogs. Deletions are now instant with a satisfying haptic thud, followed by a non-intrusive Snackbar allowing a quick "Undo".
 - **Unsigned iOS Build Pipeline**: Implemented a fully automated GitHub Actions workflow (`build_ios.yml`) that bypasses Xcode codesigning requirements. This allows building and packaging an unsigned `.ipa` for jailbroken devices directly from the repository without a paid Apple Developer account.
 - **3-Tier Monetization Model**: Pivoted from a single premium unlock to a flexible Freemium model featuring 100 free scans, followed by a choice of Ad-Supported access, a 400 Scan Pack, or a 1-Year VIP Subscription.
 - **AdMob Integration**: Added Google Mobile Ads SDK. Ad-supported users now see a banner on the home screen and an interstitial ad every 2 scans.
@@ -26,6 +33,8 @@ made — not batched later.
 - Moved the main "Scan Document" button to the `bottomNavigationBar` for easier one-handed reachability.
 - Upgraded `compileSdk` to 36 and `minSdk` to 24 to support modern ML Kit libraries.
 - Removed the Settings View Mode popup in favor of a zero-cognitive-load instant toggle button.
+- Removed manual Auto-Name buttons from Document Cards as naming is now handled automatically.
+- Completely removed Kebab (3-dot) menus from Document Cards to reduce UI clutter, replaced by Long-Press.
 
 ### Fixed
 - Fixed build failures caused by outdated Kotlin Gradle Plugins in external dependencies by injecting a global SDK override script.

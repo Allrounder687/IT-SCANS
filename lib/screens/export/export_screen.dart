@@ -3,16 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../../models/scan_document.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/library_provider.dart';
 import '../../core/theme.dart';
 import '../../services/export_service.dart';
+import '../../services/firebase_share_service.dart';
 
 class ExportScreen extends StatelessWidget {
   final ScanDocument document;
   final ExportService _exportService = ExportService();
+  final FirebaseShareService _shareService = FirebaseShareService();
 
   ExportScreen({super.key, required this.document});
 
@@ -33,6 +36,137 @@ class ExportScreen extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to save: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> _sendToUser(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> recentContacts = prefs.getStringList('recent_contacts') ?? [];
+    
+    if (!context.mounted) return;
+    
+    final email = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: appSurface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Recent Contacts', style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              if (recentContacts.isEmpty)
+                Text('No recent contacts yet.', style: GoogleFonts.inter(color: appTextMuted)),
+              if (recentContacts.isNotEmpty)
+                SizedBox(
+                  height: 80,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: recentContacts.length,
+                    separatorBuilder: (context, index) => const SizedBox(width: 16),
+                    itemBuilder: (context, index) {
+                      final contact = recentContacts[index];
+                      return GestureDetector(
+                        onTap: () => Navigator.pop(context, contact),
+                        child: Column(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: appAccent.withValues(alpha: 0.2),
+                              child: Text(contact[0].toUpperCase(), style: const TextStyle(color: appAccent)),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(contact.length > 10 ? '${contact.substring(0, 8)}...' : contact, style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(context, 'NEW_CONTACT'),
+                  icon: const Icon(Icons.person_add, color: appAccent),
+                  label: Text('Send to New Contact', style: GoogleFonts.spaceGrotesk(color: Colors.white)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: appLine),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    String? finalEmail;
+
+    if (email == 'NEW_CONTACT' && context.mounted) {
+      final TextEditingController emailController = TextEditingController();
+      finalEmail = await showDialog<String>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: appSurface,
+            title: Text('Send to User', style: GoogleFonts.spaceGrotesk(color: Colors.white)),
+            content: TextField(
+              controller: emailController,
+              style: GoogleFonts.inter(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Enter recipient email',
+                hintStyle: GoogleFonts.inter(color: appTextMuted),
+                enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: appLine)),
+                focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: appAccent)),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel', style: GoogleFonts.inter(color: appTextMuted)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, emailController.text.trim()),
+                child: Text('Send', style: GoogleFonts.inter(color: appAccent, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      finalEmail = email;
+    }
+
+    if (finalEmail != null && finalEmail.isNotEmpty && context.mounted) {
+      if (!recentContacts.contains(finalEmail)) {
+        recentContacts.insert(0, finalEmail);
+        if (recentContacts.length > 5) recentContacts = recentContacts.sublist(0, 5);
+        await prefs.setStringList('recent_contacts', recentContacts);
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sending document...', style: GoogleFonts.inter())),
+      );
+      
+      final success = await _shareService.shareDocument(document.filePath, '${document.name}.pdf', finalEmail);
+      
+      if (context.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Document sent to $finalEmail successfully!', style: GoogleFonts.inter(color: Colors.black)), backgroundColor: appAccent),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to send document. Ensure you are signed in.', style: GoogleFonts.inter())),
+          );
+        }
       }
     }
   }
@@ -115,14 +249,15 @@ class ExportScreen extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _shareDocument,
-                          icon: const Icon(Icons.share, color: Colors.white),
+                          icon: const Icon(Icons.adaptive.share, color: Colors.blueAccent),
                           label: Text(
-                            'Share',
-                            style: GoogleFonts.spaceGrotesk(color: Colors.white),
+                            'Social Media',
+                            style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             side: const BorderSide(color: appLine),
+                            backgroundColor: Colors.blueAccent.withValues(alpha: 0.15),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
@@ -191,6 +326,27 @@ class ExportScreen extends StatelessWidget {
                         ),
                       );
                     },
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _sendToUser(context),
+                      icon: const Icon(Icons.send_rounded, color: Colors.blueAccent),
+                      label: Text(
+                        'Direct Send to User',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: appLine),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -60,17 +60,36 @@ class LibraryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> deleteDocument(String id) async {
-    // 1. Find the document to get its file path
+  final Map<String, ScanDocument> _hiddenDocuments = {};
+
+  void deleteDocument(String id) {
     final docIndex = _documents.indexWhere((d) => d.id == id);
     if (docIndex == -1) return;
     
-    final doc = _documents[docIndex];
+    final doc = _documents.removeAt(docIndex);
+    _hiddenDocuments[id] = doc;
+    notifyListeners();
 
-    // 2. Remove from SQLite
-    await _storageService.deleteDocument(id);
+    // Auto-commit delete after 4 seconds if not undone
+    Future.delayed(const Duration(seconds: 4), () {
+      if (_hiddenDocuments.containsKey(id)) {
+        _executeDelete(id);
+      }
+    });
+  }
+
+  void undoDelete(String id) {
+    if (_hiddenDocuments.containsKey(id)) {
+      _documents.insert(0, _hiddenDocuments.remove(id)!);
+      notifyListeners();
+    }
+  }
+
+  Future<void> _executeDelete(String id) async {
+    final doc = _hiddenDocuments.remove(id);
+    if (doc == null) return;
     
-    // 3. Remove the actual file from disk to save space
+    await _storageService.deleteDocument(id);
     try {
       final file = File(doc.filePath);
       if (await file.exists()) {
@@ -79,29 +98,22 @@ class LibraryProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to delete file: $e');
     }
-
-    // 4. Update UI state
-    _documents.removeAt(docIndex);
-    notifyListeners();
   }
 
-  Future<void> deleteMultipleDocuments(Set<String> ids) async {
+  void deleteMultipleDocuments(Set<String> ids) {
     for (String id in ids) {
       final docIndex = _documents.indexWhere((d) => d.id == id);
       if (docIndex != -1) {
-        final doc = _documents[docIndex];
-        await _storageService.deleteDocument(id);
-        try {
-          final file = File(doc.filePath);
-          if (await file.exists()) {
-            await file.delete();
+        final doc = _documents.removeAt(docIndex);
+        _hiddenDocuments[id] = doc;
+        
+        Future.delayed(const Duration(seconds: 4), () {
+          if (_hiddenDocuments.containsKey(id)) {
+            _executeDelete(id);
           }
-        } catch (e) {
-          debugPrint('Failed to delete file: $e');
-        }
+        });
       }
     }
-    _documents.removeWhere((doc) => ids.contains(doc.id));
     notifyListeners();
   }
 

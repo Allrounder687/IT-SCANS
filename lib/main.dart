@@ -3,17 +3,28 @@ import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'app.dart';
 import 'providers/library_provider.dart';
 import 'providers/monetization_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/accessibility_provider.dart';
+import 'providers/inbox_provider.dart';
 import 'services/storage_service.dart';
 import 'services/cloud_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
+
   final storageService = StorageService();
   final cloudSyncService = CloudSyncService();
   final prefs = await SharedPreferences.getInstance();
@@ -34,6 +45,10 @@ void main() async {
         ChangeNotifierProvider(create: (_) => MonetizationProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider(cloudSyncService, prefs)),
         ChangeNotifierProvider(create: (_) => AccessibilityProvider(prefs)),
+        ChangeNotifierProxyProvider<LibraryProvider, InboxProvider>(
+          create: (context) => InboxProvider(context.read<LibraryProvider>()),
+          update: (context, library, previous) => previous ?? InboxProvider(library),
+        ),
       ],
       child: const ItScansApp(),
     ),
