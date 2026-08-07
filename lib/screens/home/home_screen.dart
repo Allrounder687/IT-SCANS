@@ -68,8 +68,8 @@ class _HomeScreenState extends State<HomeScreen> {
       if (doc.name.startsWith('Scan 20') || doc.name.startsWith('Scan 2')) {
         try {
           final ocrResult = await _ocrService.analyzeDocument(doc.filePath);
-          String newName = ocrResult?.name ?? doc.name;
-          if (newName != doc.name && mounted) {
+          String? newName = ocrResult?.name;
+          if (newName != null && newName != doc.name && mounted) {
             await library.renameDocument(doc.id, newName);
           }
         } catch (e) {
@@ -188,12 +188,12 @@ class _HomeScreenState extends State<HomeScreen> {
           _ocrService.analyzeDocument(doc.filePath).then((ocrResult) {
             if (ocrResult != null && mounted) {
               final newName = ocrResult.name;
-              if (newName != doc.name) {
+              if (newName != null && newName != doc.name) {
                 context.read<LibraryProvider>().renameDocument(doc.id, newName);
               }
               
               // Smart Folders categorization
-              final text = ocrResult.text.toLowerCase();
+              final text = ocrResult.fullText.toLowerCase();
               String? category;
               
               if (text.contains('total') || text.contains('tax') || text.contains('receipt') || text.contains('amount due')) {

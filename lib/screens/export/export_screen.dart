@@ -249,7 +249,7 @@ class ExportScreen extends StatelessWidget {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _shareDocument,
-                          icon: const Icon(Icons.adaptive.share, color: Colors.blueAccent),
+                          icon: const Icon(Icons.share, color: Colors.blueAccent),
                           label: Text(
                             'Social Media',
                             style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold),

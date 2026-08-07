@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../services/firebase_share_service.dart';
+import '../models/scan_document.dart';
 import 'library_provider.dart';
 
 class InboxProvider extends ChangeNotifier {
@@ -70,7 +71,15 @@ class InboxProvider extends ChangeNotifier {
       await file.writeAsBytes(response.bodyBytes);
       
       // 4. Add to Library
-      await _libraryProvider.addDocument(file.path, originalName, 1);
+      final doc = ScanDocument(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: originalName,
+        pageCount: 1,
+        filePath: file.path,
+        createdAt: DateTime.now(),
+        category: 'Documents',
+      );
+      await _libraryProvider.addDocument(doc);
       
       debugPrint('Auto-downloaded and added $originalName to library');
       
