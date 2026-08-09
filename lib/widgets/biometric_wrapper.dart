@@ -36,11 +36,9 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if (_requiresAuth && !_isAuthenticated && !_isAuthenticating) {
-        _authenticate();
-      }
+      _checkRequirementsAndAuthenticate();
     } else if (state == AppLifecycleState.paused) {
-      if (_requiresAuth) {
+      if (_requiresAuth && !_isAuthenticating) {
         setState(() {
           _isAuthenticated = false;
         });
@@ -51,16 +49,23 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
   Future<void> _checkRequirementsAndAuthenticate() async {
     final prefs = await SharedPreferences.getInstance();
     final requiresAuth = prefs.getBool('require_biometrics') ?? false;
-    setState(() {
-      _requiresAuth = requiresAuth;
-    });
+    
+    if (mounted) {
+      setState(() {
+        _requiresAuth = requiresAuth;
+      });
+    }
 
     if (requiresAuth) {
-      await _authenticate();
+      if (!_isAuthenticated && !_isAuthenticating) {
+        await _authenticate();
+      }
     } else {
-      setState(() {
-        _isAuthenticated = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isAuthenticated = true;
+        });
+      }
     }
   }
 
