@@ -5,12 +5,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'cloud_sync_service.dart';
 
 class FirebaseShareService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  FirebaseAuth get _auth => FirebaseAuth.instance;
   final CloudSyncService _syncService = CloudSyncService();
+
+  bool get _isFirebaseInitialized => Firebase.apps.isNotEmpty;
 
   /// Uploads a PDF to the user's Google Drive, gets a public link, and creates a notification document in the recipient's inbox.
   Future<bool> shareDocument(String pdfPath, String originalName, String recipientEmail) async {
+    if (!_isFirebaseInitialized) {
+      debugPrint('Firebase is not initialized.');
+      return false;
+    }
     try {
       final user = _auth.currentUser;
       if (user == null || user.email == null) {
@@ -58,6 +64,8 @@ class FirebaseShareService {
 
   /// Returns a real-time stream of documents shared with the current user.
   Stream<List<Map<String, dynamic>>> getInboxStream() {
+    if (!_isFirebaseInitialized) return const Stream.empty();
+
     final user = _auth.currentUser;
     if (user == null || user.email == null) {
       return const Stream.empty();
@@ -81,6 +89,8 @@ class FirebaseShareService {
 
   /// Marks an inbox message as read.
   Future<void> markAsRead(String messageId) async {
+    if (!_isFirebaseInitialized) return;
+
     final user = _auth.currentUser;
     if (user == null || user.email == null) return;
 
@@ -99,6 +109,8 @@ class FirebaseShareService {
 
   /// Deletes an inbox message (does not delete the underlying storage file to prevent affecting others if shared multiple times).
   Future<void> deleteMessage(String messageId) async {
+    if (!_isFirebaseInitialized) return;
+
     final user = _auth.currentUser;
     if (user == null || user.email == null) return;
 
