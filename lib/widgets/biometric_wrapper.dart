@@ -19,6 +19,8 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
   bool _isAuthenticated = false;
   bool _requiresAuth = false;
   bool _isAuthenticating = false;
+  int _delaySeconds = 0;
+  DateTime? _pausedAt;
 
   @override
   void initState() {
@@ -39,9 +41,12 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
       _checkRequirementsAndAuthenticate();
     } else if (state == AppLifecycleState.paused) {
       if (_requiresAuth && !_isAuthenticating) {
-        setState(() {
-          _isAuthenticated = false;
-        });
+        _pausedAt = DateTime.now();
+        if (_delaySeconds == 0) {
+          setState(() {
+            _isAuthenticated = false;
+          });
+        }
       }
     }
   }
@@ -49,14 +54,31 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
   Future<void> _checkRequirementsAndAuthenticate() async {
     final prefs = await SharedPreferences.getInstance();
     final requiresAuth = prefs.getBool('require_biometrics') ?? false;
+    final delaySeconds = prefs.getInt('autolock_delay_seconds') ?? 0;
     
     if (mounted) {
       setState(() {
         _requiresAuth = requiresAuth;
+        _delaySeconds = delaySeconds;
       });
     }
 
     if (requiresAuth) {
+      if (_pausedAt != null && delaySeconds > 0) {
+        final elapsed = DateTime.now().difference(_pausedAt!).inSeconds;
+        _pausedAt = null;
+        if (elapsed < delaySeconds) {
+          return; // Do not lock
+        } else {
+          if (mounted) {
+            setState(() {
+              _isAuthenticated = false;
+            });
+          }
+        }
+      }
+      _pausedAt = null;
+
       if (!_isAuthenticated && !_isAuthenticating) {
         await _authenticate();
       }

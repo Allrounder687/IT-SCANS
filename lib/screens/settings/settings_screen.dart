@@ -214,6 +214,7 @@ class _SecurityCard extends StatefulWidget {
 
 class _SecurityCardState extends State<_SecurityCard> {
   bool _requireBiometrics = false;
+  int _delaySeconds = 0;
 
   @override
   void initState() {
@@ -225,6 +226,7 @@ class _SecurityCardState extends State<_SecurityCard> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _requireBiometrics = prefs.getBool('require_biometrics') ?? false;
+      _delaySeconds = prefs.getInt('autolock_delay_seconds') ?? 0;
     });
   }
 
@@ -249,6 +251,14 @@ class _SecurityCardState extends State<_SecurityCard> {
     });
   }
 
+  Future<void> _setDelay(int seconds) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('autolock_delay_seconds', seconds);
+    setState(() {
+      _delaySeconds = seconds;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -257,14 +267,48 @@ class _SecurityCardState extends State<_SecurityCard> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: appLine)),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: SwitchListTile(
-          secondary: const CircleAvatar(backgroundColor: appBackground, child: Icon(Icons.fingerprint, color: appAccent)),
-          title: Text('App Lock', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w600, color: Colors.white)),
-          subtitle: Text('Require biometrics to open', style: GoogleFonts.inter(color: appTextMuted, fontSize: 13)),
-          value: _requireBiometrics,
-          onChanged: _toggleBiometrics,
-          activeTrackColor: appAccent.withValues(alpha: 0.5),
-          activeColor: appAccent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SwitchListTile(
+              secondary: const CircleAvatar(backgroundColor: appBackground, child: Icon(Icons.fingerprint, color: appAccent)),
+              title: Text('App Lock', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w600, color: Colors.white)),
+              subtitle: Text('Require biometrics to open', style: GoogleFonts.inter(color: appTextMuted, fontSize: 13)),
+              value: _requireBiometrics,
+              onChanged: _toggleBiometrics,
+              activeTrackColor: appAccent.withValues(alpha: 0.5),
+              activeColor: appAccent,
+            ),
+            if (_requireBiometrics) ...[
+              const Divider(color: appLine, height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Require lock after:', style: GoogleFonts.inter(color: Colors.white, fontSize: 14)),
+                    const SizedBox(height: 12),
+                    SegmentedButton<int>(
+                      style: ButtonStyle(
+                        backgroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? appAccent : appBackground),
+                        foregroundColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? Colors.black : Colors.white),
+                        side: const WidgetStatePropertyAll(BorderSide(color: appLine)),
+                      ),
+                      segments: const [
+                        ButtonSegment<int>(value: 0, label: Text('Immediately')),
+                        ButtonSegment<int>(value: 60, label: Text('1 Min')),
+                        ButtonSegment<int>(value: 300, label: Text('5 Min')),
+                      ],
+                      selected: {_delaySeconds},
+                      onSelectionChanged: (Set<int> newSelection) {
+                        _setDelay(newSelection.first);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
