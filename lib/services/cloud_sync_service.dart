@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/scan_document.dart';
@@ -120,7 +121,10 @@ class CloudSyncService {
     }
   }
 
+  bool get _isFirebaseInitialized => Firebase.apps.isNotEmpty;
+
   Future<void> _firebaseAuthWithGoogle(GoogleSignInAccount account) async {
+    if (!_isFirebaseInitialized) return;
     try {
       final GoogleSignInAuthentication googleAuth = await account.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
@@ -136,7 +140,9 @@ class CloudSyncService {
   Future<void> signOut() async {
     if (Platform.isAndroid || Platform.isIOS) {
       await _googleSignIn.signOut();
-      await FirebaseAuth.instance.signOut();
+      if (_isFirebaseInitialized) {
+        await FirebaseAuth.instance.signOut();
+      }
     }
     
     _desktopAuthClient?.close();

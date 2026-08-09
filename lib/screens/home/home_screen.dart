@@ -53,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadBannerAd();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _runOcrSweep();
       if (context.read<AuthProvider>().isSignedIn) {
         context.read<InboxProvider>().startListening();
@@ -61,10 +62,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _runOcrSweep() async {
+    if (!mounted) return;
     final library = context.read<LibraryProvider>();
     // Wait for documents to load
     while (library.isLoading) {
       await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
     }
     
     // Find documents with default names
