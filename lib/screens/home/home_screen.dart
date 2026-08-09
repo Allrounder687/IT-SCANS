@@ -14,6 +14,8 @@ import '../../widgets/document_card.dart';
 import '../../widgets/document_grid_card.dart';
 import '../../widgets/beam_wipe_overlay.dart';
 import '../../widgets/fanned_stack_layout.dart';
+import '../../services/cloud_sync_service.dart';
+import '../../services/update_service.dart';
 import '../../services/ocr_service.dart';
 import '../../core/theme.dart';
 import '../export/export_screen.dart';
@@ -55,10 +57,53 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _runOcrSweep();
+      _checkUpdatesInBackground();
       if (context.read<AuthProvider>().isSignedIn) {
         context.read<InboxProvider>().startListening();
       }
     });
+  }
+
+  Future<void> _checkUpdatesInBackground() async {
+    final updateService = UpdateService();
+    final info = await updateService.checkForUpdate();
+    
+    if (!mounted) return;
+    if (info != null && info.isUpdateAvailable) {
+      // Download silently
+      final path = await updateService.downloadUpdate(info.downloadUrl);
+      if (!mounted) return;
+      
+      if (path != null) {
+        // Show cute prompt!
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: appSurface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: appAccent)),
+            title: Text('Yay! A New Update! 🚀', style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Text(
+              'I found a new version of IT SCANS (${info.latestVersion}) and downloaded it for you! Install it now to get the latest magic! ✨',
+              style: GoogleFonts.inter(color: appTextMuted),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Maybe Later', style: GoogleFonts.inter(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: appAccent, foregroundColor: Colors.black),
+                onPressed: () {
+                  Navigator.pop(context);
+                  updateService.installUpdate(path);
+                },
+                child: Text('Install Magic ✨', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _runOcrSweep() async {

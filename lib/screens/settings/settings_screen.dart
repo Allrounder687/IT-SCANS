@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/library_provider.dart';
 import '../../providers/accessibility_provider.dart';
+import '../../services/update_service.dart';
 import '../../core/theme.dart';
 import 'cloud_management_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -195,11 +197,145 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildAboutSection(BuildContext context) {
+    return const _AboutSection();
+  }
+}
+
+class _AboutSection extends StatefulWidget {
+  const _AboutSection();
+
+  @override
+  State<_AboutSection> createState() => _AboutSectionState();
+}
+
+class _AboutSectionState extends State<_AboutSection> {
+  String _version = '';
+  bool _isChecking = false;
+  bool _isDownloading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _version = info.version;
+      });
+    }
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (_isChecking || _isDownloading) return;
+    
+    setState(() {
+      _isChecking = true;
+    });
+
+    final updateService = UpdateService();
+    final info = await updateService.checkForUpdate();
+    
+    if (!mounted) return;
+    
+    if (info != null && info.isUpdateAvailable) {
+      setState(() {
+        _isChecking = false;
+        _isDownloading = true;
+      });
+      
+      final path = await updateService.downloadUpdate(info.downloadUrl);
+      
+      if (!mounted) return;
+      setState(() {
+        _isDownloading = false;
+      });
+      
+      if (path != null) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: appSurface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: appAccent)),
+            title: Text('Yay! Update Ready! 🚀', style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Text(
+              'A new version (${info.latestVersion}) is downloaded and ready to install. Update now to get the latest magic for the family!',
+              style: GoogleFonts.inter(color: appTextMuted),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Later', style: GoogleFonts.inter(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: appAccent, foregroundColor: Colors.black),
+                onPressed: () {
+                  Navigator.pop(context);
+                  updateService.installUpdate(path);
+                },
+                child: Text('Install Magic ✨', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to download update', style: GoogleFonts.inter()), backgroundColor: Colors.red),
+        );
+      }
+    } else {
+      setState(() {
+        _isChecking = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('You are on the latest version! 🎉', style: GoogleFonts.inter(color: Colors.black)),
+          backgroundColor: appAccent,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Text('IT SCANS', style: GoogleFonts.spaceGrotesk(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        if (_version.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text('Version $_version', style: GoogleFonts.inter(fontSize: 12, color: appAccent)),
+        ],
         const SizedBox(height: 4),
         Text('Made for family by Syed Faisal Majeed', style: GoogleFonts.inter(fontSize: 14, color: appTextMuted), textAlign: TextAlign.center),
+        const SizedBox(height: 16),
+        if (_isDownloading)
+          Column(
+            children: [
+              const SizedBox(
+                width: 24, height: 24,
+                child: CircularProgressIndicator(color: appAccent, strokeWidth: 2),
+              ),
+              const SizedBox(height: 8),
+              Text('Downloading magic...', style: GoogleFonts.inter(fontSize: 12, color: appTextMuted)),
+            ],
+          )
+        else
+          TextButton.icon(
+            onPressed: _isChecking ? null : _checkForUpdates,
+            icon: _isChecking 
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: appAccent, strokeWidth: 2))
+              : const Icon(Icons.system_update, color: appAccent, size: 18),
+            label: Text(_isChecking ? 'Checking...' : 'Check for Updates', style: GoogleFonts.inter(color: appAccent)),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: appAccent.withValues(alpha: 0.3)),
+              ),
+            ),
+          ),
       ],
     );
   }
