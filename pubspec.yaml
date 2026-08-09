@@ -57,7 +57,6 @@ dependencies:
   image_picker: ^1.2.3
   sqflite_common_ffi: ^2.3.5
   sqlite3_flutter_libs: ^0.6.0+eol
-  google_cloud: ^0.5.0
   flutter_ocr_native: ^0.3.3
 
 dev_dependencies:
