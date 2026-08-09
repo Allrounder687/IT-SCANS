@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/scan_document.dart';
+import '../models/category_model.dart';
 import '../services/storage_service.dart';
 
 class LibraryProvider extends ChangeNotifier {
@@ -8,16 +10,44 @@ class LibraryProvider extends ChangeNotifier {
   List<ScanDocument> _documents = [];
   bool _isLoading = true;
   String _selectedCategory = 'All';
+  List<AppSection> _sections = [];
+  List<AppSubfolder> _subfolders = [];
+  String? _selectedSubfolder;
   String _searchQuery = '';
+  
+  String? _customSaveLocation;
 
   LibraryProvider(this._storageService) {
     _loadDocuments();
+    _loadSettings();
   }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _customSaveLocation = prefs.getString('customSaveLocation');
+    notifyListeners();
+  }
+
+  Future<void> setCustomSaveLocation(String? path) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (path == null) {
+      await prefs.remove('customSaveLocation');
+    } else {
+      await prefs.setString('customSaveLocation', path);
+    }
+    _customSaveLocation = path;
+    notifyListeners();
+  }
+
+  String? get customSaveLocation => _customSaveLocation;
 
   List<ScanDocument> get documents {
     var filtered = _documents;
     if (_selectedCategory != 'All') {
       filtered = filtered.where((d) => d.category == _selectedCategory).toList();
+    }
+    if (_selectedSubfolder != null) {
+      filtered = filtered.where((d) => d.subfolder == _selectedSubfolder).toList();
     }
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
@@ -31,12 +61,34 @@ class LibraryProvider extends ChangeNotifier {
   }
   
   String get selectedCategory => _selectedCategory;
+  String? get selectedSubfolder => _selectedSubfolder;
   String get searchQuery => _searchQuery;
   bool get isLoading => _isLoading;
+
+  List<AppSection> get sections => _sections;
+  
+  List<String> get allCategories {
+    final defaultCategories = ['Receipts', 'Invoices', 'IDs', 'Taxes', 'Notes', 'Documents'];
+    return [
+      ...defaultCategories,
+      ..._sections.map((s) => s.name),
+    ];
+  }
+  
+  List<AppSubfolder> get currentSubfolders => _subfolders.where((s) => s.sectionId == _selectedCategory).toList();
+  List<AppSubfolder> getSubfoldersForCategory(String category) => _subfolders.where((s) => s.sectionId == category).toList();
 
   void setCategory(String category) {
     if (_selectedCategory != category) {
       _selectedCategory = category;
+      _selectedSubfolder = null; // Reset subfolder on category change
+      notifyListeners();
+    }
+  }
+
+  void setSubfolder(String? subfolder) {
+    if (_selectedSubfolder != subfolder) {
+      _selectedSubfolder = subfolder;
       notifyListeners();
     }
   }
@@ -50,8 +102,42 @@ class LibraryProvider extends ChangeNotifier {
 
   Future<void> _loadDocuments() async {
     _documents = await _storageService.getScanDocuments();
+    _sections = await _storageService.getSections();
+    _subfolders = await _storageService.getAllSubfolders();
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> importStructure(String jsonString) async {
+    await _storageService.importStructureFromJson(jsonString);
+    _sections = await _storageService.getSections();
+    _subfolders = await _storageService.getAllSubfolders();
+    notifyListeners();
+  }
+
+  Future<String> exportStructureToJson() async {
+    return await _storageService.exportStructureToJson();
+  }
+
+  Future<void> addSection(String name) async {
+    final newSection = AppSection(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name);
+    await _storageService.saveSection(newSection);
+    _sections.add(newSection);
+    notifyListeners();
+  }
+
+  Future<void> addSubfolder(String name) async {
+    if (_selectedCategory == 'All') return;
+    await ensureSubfolderExists(_selectedCategory, name);
+  }
+
+  Future<void> ensureSubfolderExists(String sectionId, String name) async {
+    if (!_subfolders.any((s) => s.sectionId == sectionId && s.name == name)) {
+      final newSubfolder = AppSubfolder(id: DateTime.now().millisecondsSinceEpoch.toString(), sectionId: sectionId, name: name);
+      await _storageService.saveSubfolder(newSubfolder);
+      _subfolders.add(newSubfolder);
+      notifyListeners();
+    }
   }
 
   Future<void> addDocument(ScanDocument doc) async {
@@ -151,6 +237,29 @@ class LibraryProvider extends ChangeNotifier {
         isSynced: oldDoc.isSynced,
         driveId: oldDoc.driveId,
         category: newCategory,
+        subfolder: oldDoc.subfolder,
+        extractedText: oldDoc.extractedText,
+      );
+      notifyListeners();
+    }
+  }
+
+  Future<void> moveDocument(String id, String category, String? subfolder) async {
+    await _storageService.moveDocument(id, category, subfolder);
+    
+    final docIndex = _documents.indexWhere((d) => d.id == id);
+    if (docIndex != -1) {
+      final oldDoc = _documents[docIndex];
+      _documents[docIndex] = ScanDocument(
+        id: oldDoc.id,
+        name: oldDoc.name,
+        pageCount: oldDoc.pageCount,
+        filePath: oldDoc.filePath,
+        createdAt: oldDoc.createdAt,
+        isSynced: oldDoc.isSynced,
+        driveId: oldDoc.driveId,
+        category: category,
+        subfolder: subfolder,
         extractedText: oldDoc.extractedText,
       );
       notifyListeners();
@@ -178,3 +287,4 @@ class LibraryProvider extends ChangeNotifier {
     }
   }
 }
+

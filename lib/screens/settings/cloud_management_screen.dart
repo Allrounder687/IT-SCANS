@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import '../../providers/auth_provider.dart';
 import '../../core/theme.dart';
+import '../../services/cloud_sync_service.dart';
 
 class CloudManagementScreen extends StatefulWidget {
   const CloudManagementScreen({super.key});
@@ -13,7 +14,7 @@ class CloudManagementScreen extends StatefulWidget {
 }
 
 class _CloudManagementScreenState extends State<CloudManagementScreen> {
-  List<drive.File> _files = [];
+  List<CloudDocument> _files = [];
   bool _isLoading = true;
 
   @override
@@ -25,7 +26,7 @@ class _CloudManagementScreenState extends State<CloudManagementScreen> {
   Future<void> _loadFiles() async {
     setState(() => _isLoading = true);
     final auth = context.read<AuthProvider>();
-    final files = await auth.syncService.listBackedUpFiles();
+    final files = await auth.syncService.fetchCloudHierarchy();
     setState(() {
       _files = files;
       _isLoading = false;
@@ -98,36 +99,52 @@ class _CloudManagementScreenState extends State<CloudManagementScreen> {
                   itemCount: _files.length,
                   separatorBuilder: (context, index) => const Divider(color: appLine),
                   itemBuilder: (context, index) {
-                    final file = _files[index];
-                    final sizeBytes = int.tryParse(file.size ?? '0') ?? 0;
+                    final cloudDoc = _files[index];
+                    final file = cloudDoc.file;
+                    final size = int.tryParse(file.size ?? '0') ?? 0;
+                    
+                    String subtitleText = '${_formatBytes(size)} • ${file.createdTime?.toLocal().toString().split('.')[0] ?? 'Unknown date'}';
+                    if (cloudDoc.category != 'Documents') {
+                      subtitleText += '\nFolder: ${cloudDoc.category}${cloudDoc.subfolder != null ? ' / ${cloudDoc.subfolder}' : ''}';
+                    }
+
                     return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: appAccent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.picture_as_pdf, color: appAccent),
+                      ),
                       title: Text(
-                        file.name ?? 'Unknown',
+                        file.name ?? 'Unknown Document',
                         style: GoogleFonts.inter(
                           color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       subtitle: Text(
-                        _formatBytes(sizeBytes),
-                        style: GoogleFonts.inter(color: appTextMuted),
+                        subtitleText,
+                        style: GoogleFonts.inter(color: appTextMuted, fontSize: 12),
                       ),
                       trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                         onPressed: () {
                           showDialog(
                             context: context,
                             builder: (context) => AlertDialog(
                               backgroundColor: appSurface,
-                              title: Text('Delete from Drive?',
-                                  style: GoogleFonts.spaceGrotesk(color: Colors.white)),
+                              title: Text('Delete from Cloud?', style: GoogleFonts.spaceGrotesk(color: Colors.white)),
                               content: Text(
-                                  'This will permanently delete the backup of ${file.name} from your Google Drive.',
-                                  style: GoogleFonts.inter(color: appTextMuted)),
+                                'This will remove the file from your Google Drive backup. It will not delete your local copy.',
+                                style: GoogleFonts.inter(color: appTextMuted),
+                              ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(context),
-                                  child: Text('Cancel', style: GoogleFonts.inter(color: Colors.white)),
+                                  child: Text('Cancel', style: GoogleFonts.inter(color: appTextMuted)),
                                 ),
                                 TextButton(
                                   onPressed: () {
@@ -136,7 +153,7 @@ class _CloudManagementScreenState extends State<CloudManagementScreen> {
                                       _deleteFile(file.id!);
                                     }
                                   },
-                                  child: Text('Delete', style: GoogleFonts.inter(color: Colors.red)),
+                                  child: Text('Delete', style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),

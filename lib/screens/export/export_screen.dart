@@ -11,6 +11,7 @@ import '../../providers/library_provider.dart';
 import '../../core/theme.dart';
 import '../../services/export_service.dart';
 import '../../services/firebase_share_service.dart';
+import '../../widgets/app_pdf_viewer.dart';
 
 class ExportScreen extends StatelessWidget {
   final ScanDocument document;
@@ -183,11 +184,15 @@ class ExportScreen extends StatelessWidget {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(32.0),
-                child: Hero(
-                  tag: 'card_${document.id}',
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: appPaper,
+                child: Builder(
+                  builder: (context) {
+                    final isDesktop = Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+                    final isPdf = document.filePath.toLowerCase().endsWith('.pdf');
+                    final useHero = !(isDesktop && isPdf);
+                    
+                    final container = Container(
+                      decoration: BoxDecoration(
+                        color: appPaper,
                       borderRadius: BorderRadius.circular(8),
                       boxShadow: [
                         BoxShadow(
@@ -203,19 +208,23 @@ class ExportScreen extends StatelessWidget {
                         ? Container(
                             color: Colors.white,
                             padding: const EdgeInsets.all(16.0),
-                            child: PDFView(
+                            child: AppPdfViewer(
                               filePath: document.filePath,
-                              enableSwipe: true,
-                              swipeHorizontal: false,
-                              autoSpacing: true,
-                              pageFling: true,
-                              fitPolicy: FitPolicy.BOTH,
-                              backgroundColor: Colors.white,
+                              isThumbnail: false,
                             ),
                           )
                         : Image.file(File(document.filePath), fit: BoxFit.cover),
                     ),
-                  ),
+                  );
+                    
+                    if (useHero) {
+                      return Hero(
+                        tag: 'card_${document.id}',
+                        child: container,
+                      );
+                    }
+                    return container;
+                  }
                 ),
               ),
             ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../services/monetization_service.dart';
@@ -44,13 +45,15 @@ class MonetizationProvider extends ChangeNotifier {
     _isAdSupported = await _service.isAdSupported();
     _purchasedScans = await _service.getPurchasedScans();
 
-    _subscription = _service.purchaseStream.listen((purchaseDetailsList) {
-      _listenToPurchaseUpdated(purchaseDetailsList);
-    }, onDone: () {
-      _subscription.cancel();
-    }, onError: (error) {
-      // handle error
-    });
+    if (Platform.isAndroid || Platform.isIOS) {
+      _subscription = _service.purchaseStream.listen((purchaseDetailsList) {
+        _listenToPurchaseUpdated(purchaseDetailsList);
+      }, onDone: () {
+        _subscription.cancel();
+      }, onError: (error) {
+        // handle error
+      });
+    }
 
     await _loadProducts();
     _isLoading = false;
@@ -72,6 +75,7 @@ class MonetizationProvider extends ChangeNotifier {
   }
 
   Future<void> _loadProducts() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     final bool isAvailable = await _service.isStoreAvailable();
     if (!isAvailable) {
       return;

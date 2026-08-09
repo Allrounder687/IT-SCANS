@@ -3,7 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  file_selector_linux
   flutter_doc_scanner
+  flutter_ocr_native
   url_launcher_linux
 )
 

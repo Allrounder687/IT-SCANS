@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -16,7 +18,13 @@ import 'services/cloud_sync_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isWindows || Platform.isLinux) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
   
+  /*
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -24,6 +32,7 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
+  */
 
   final storageService = StorageService();
   final cloudSyncService = CloudSyncService();
@@ -36,7 +45,9 @@ void main() async {
     ),
   );
   
-  await MobileAds.instance.initialize();
+  if (Platform.isAndroid || Platform.isIOS) {
+    await MobileAds.instance.initialize();
+  }
 
   runApp(
     MultiProvider(

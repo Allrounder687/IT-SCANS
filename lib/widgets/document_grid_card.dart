@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:provider/provider.dart';
 import '../models/scan_document.dart';
 import '../core/theme.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../providers/library_provider.dart';
+import 'app_pdf_viewer.dart';
 import 'rotating_subtitle.dart';
+import 'move_document_dialog.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class DocumentGridCard extends StatelessWidget {
   final ScanDocument document;
@@ -97,16 +100,7 @@ class DocumentGridCard extends StatelessWidget {
                     color: appPaper,
                     child: AbsorbPointer(
                       child: document.filePath.toLowerCase().endsWith('.pdf')
-                        ? PDFView(
-                            filePath: document.filePath,
-                            enableSwipe: false,
-                            swipeHorizontal: false,
-                            autoSpacing: false,
-                            pageFling: false,
-                            pageSnap: false,
-                            defaultPage: 0,
-                            fitPolicy: FitPolicy.BOTH,
-                          )
+                        ? AppPdfViewer(filePath: document.filePath, isThumbnail: true)
                         : Image.file(File(document.filePath), fit: BoxFit.cover),
                     ),
                   ),
@@ -127,7 +121,33 @@ class DocumentGridCard extends StatelessWidget {
                         ),
                       ),
                     ),
-
+                  if (!isSelectionMode)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_horiz, color: appTextMuted),
+                        color: appSurface,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'move',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.drive_file_move_outline, size: 18, color: Colors.white),
+                                const SizedBox(width: 12),
+                                Text('Move', style: GoogleFonts.inter(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onSelected: (value) {
+                          if (value == 'move') {
+                            showMoveDocumentDialog(context, document);
+                          }
+                        },
+                      ),
+                    ),
                 ],
               ),
             ),

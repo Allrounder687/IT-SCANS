@@ -8,6 +8,7 @@ class ScanDocument {
     this.isSynced = false,
     this.driveId,
     this.category,
+    this.subfolder,
     this.extractedText,
   });
 
@@ -19,6 +20,7 @@ class ScanDocument {
   final bool isSynced;
   final String? driveId;
   final String? category;
+  final String? subfolder;
   final String? extractedText;
 
   factory ScanDocument.fromMap(Map<String, dynamic> map) {
@@ -31,6 +33,7 @@ class ScanDocument {
       isSynced: (map['isSynced'] as int?) == 1,
       driveId: map['driveId'] as String?,
       category: map['category'] as String?,
+      subfolder: map['subfolder'] as String?,
       extractedText: map['extractedText'] as String?,
     );
   }
@@ -45,7 +48,35 @@ class ScanDocument {
       'isSynced': isSynced ? 1 : 0,
       'driveId': driveId,
       'category': category,
+      'subfolder': subfolder,
       'extractedText': extractedText,
     };
   }
+
+  ScanDocument copyWith({
+    String? id,
+    String? name,
+    int? pageCount,
+    String? filePath,
+    DateTime? createdAt,
+    bool? isSynced,
+    String? driveId,
+    String? category,
+    String? subfolder,
+    String? extractedText,
+  }) {
+    return ScanDocument(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      pageCount: pageCount ?? this.pageCount,
+      filePath: filePath ?? this.filePath,
+      createdAt: createdAt ?? this.createdAt,
+      isSynced: isSynced ?? this.isSynced,
+      driveId: driveId ?? this.driveId,
+      category: category ?? this.category,
+      subfolder: subfolder ?? this.subfolder,
+      extractedText: extractedText ?? this.extractedText,
+    );
+  }
 }
+

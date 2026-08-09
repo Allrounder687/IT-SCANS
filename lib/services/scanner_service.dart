@@ -1,7 +1,8 @@
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_doc_scanner/flutter_doc_scanner.dart';
 import '../models/scan_document.dart';
 import 'ocr_service.dart';
-
 class ScannerService {
   final _plugin = FlutterDocScanner();
   final _ocrService = OcrService();
@@ -27,6 +28,18 @@ class ScannerService {
       if (filePath != null && filePath.isNotEmpty) {
         if (filePath.startsWith('file://')) {
           filePath = filePath.substring(7);
+        }
+        
+        final prefs = await SharedPreferences.getInstance();
+        final customPath = prefs.getString('customSaveLocation');
+        if (customPath != null) {
+          final fileName = filePath.split(Platform.pathSeparator).last;
+          final saveDir = Directory(customPath);
+          if (!await saveDir.exists()) {
+            await saveDir.create(recursive: true);
+          }
+          final copiedFile = await File(filePath).copy('${saveDir.path}${Platform.pathSeparator}$fileName');
+          filePath = copiedFile.path;
         }
         
         // Generate a name contextually

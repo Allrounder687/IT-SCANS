@@ -4,9 +4,11 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   cloud_firestore
+  file_selector_windows
   firebase_auth
   firebase_core
   flutter_doc_scanner
+  flutter_ocr_native
   local_auth_windows
   pdfx
   share_plus

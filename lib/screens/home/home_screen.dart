@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,6 +22,9 @@ import '../settings/settings_screen.dart';
 import '../inbox/inbox_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 enum ViewMode { stack, list, grid }
 
@@ -80,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _loadBannerAd() {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     _bannerAd = BannerAd(
       adUnitId: 'ca-app-pub-3940256099942544/6300978111',
       size: AdSize.banner,
@@ -101,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _loadInterstitialAd() {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     InterstitialAd.load(
       adUnitId: 'ca-app-pub-3940256099942544/1033173712',
       request: const AdRequest(),
@@ -181,15 +187,24 @@ class _HomeScreenState extends State<HomeScreen> {
       if (doc != null) {
 
         if (mounted) {
+          final library = context.read<LibraryProvider>();
+          final selectedCategory = library.selectedCategory == 'All' ? 'Documents' : library.selectedCategory;
+          final selectedSubfolder = library.selectedSubfolder;
+          
+          final updatedDoc = doc.copyWith(
+            category: selectedCategory,
+            subfolder: selectedSubfolder,
+          );
+
           // Save document to library
-          await context.read<LibraryProvider>().addDocument(doc);
+          await library.addDocument(updatedDoc);
           
           // Instant Background AI Naming and Auto-Categorization
-          _ocrService.analyzeDocument(doc.filePath).then((ocrResult) {
+          _ocrService.analyzeDocument(updatedDoc.filePath).then((ocrResult) {
             if (ocrResult != null && mounted) {
               final newName = ocrResult.name;
-              if (newName != null && newName != doc.name) {
-                context.read<LibraryProvider>().renameDocument(doc.id, newName);
+              if (newName != null && newName != updatedDoc.name) {
+                context.read<LibraryProvider>().renameDocument(updatedDoc.id, newName);
               }
               
               // Smart Folders categorization
@@ -204,8 +219,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 category = 'IDs';
               }
               
-              if (category != null) {
-                context.read<LibraryProvider>().updateDocumentCategory(doc.id, category);
+              if (category != null && updatedDoc.category == 'Documents' && updatedDoc.subfolder == null) {
+                // Only override with smart folders if we are in generic 'Documents' section
+                context.read<LibraryProvider>().updateDocumentCategory(updatedDoc.id, category);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Categorized as $category', style: GoogleFonts.inter()),
@@ -225,12 +241,12 @@ class _HomeScreenState extends State<HomeScreen> {
           final libraryProvider = context.read<LibraryProvider>();
           if (auth.isSignedIn && auth.autoSync) {
             // Kick it off in the background without blocking the UI
-            auth.syncService.uploadDocument(doc).then((driveId) {
+            auth.syncService.uploadDocument(updatedDoc).then((driveId) {
               if (driveId != null && mounted) {
-                libraryProvider.updateSyncStatus(doc.id, true, driveId: driveId);
+                libraryProvider.updateSyncStatus(updatedDoc.id, true, driveId: driveId);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${doc.name} synced to Drive!', style: GoogleFonts.inter()),
+                    content: Text('${updatedDoc.name} synced to Drive!', style: GoogleFonts.inter()),
                     backgroundColor: Colors.green,
                     duration: const Duration(seconds: 2),
                   ),
@@ -250,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ExportScreen(document: doc),
+                builder: (context) => ExportScreen(document: updatedDoc),
               ),
             );
           }
@@ -271,48 +287,186 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _showRenameDialog(ScanDocument doc) async {
-    if (_isSelectionMode) return;
+  Future<void> _startScanForCategory(String targetCategory) async {
+    if (_isScanning) return;
     
-    final TextEditingController controller = TextEditingController(text: doc.name)
-      ..selection = TextSelection(baseOffset: 0, extentOffset: doc.name.length);
-      
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: appSurface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            'Rename Document',
-            style: GoogleFonts.spaceGrotesk(color: Colors.white),
-          ),
-          content: TextField(
-            controller: controller,
-            style: GoogleFonts.inter(color: Colors.white),
-            cursorColor: appAccent,
-            decoration: InputDecoration(
-              focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: appAccent)),
-              enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: appLine)),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: GoogleFonts.inter(color: appTextMuted)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()),
-              child: Text('Save', style: GoogleFonts.inter(color: appAccent, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (newName != null && newName.isNotEmpty && newName != doc.name && mounted) {
-      await context.read<LibraryProvider>().renameDocument(doc.id, newName);
+    if (_isSelectionMode) {
+      setState(() {
+        _isSelectionMode = false;
+        _selectedDocs.clear();
+      });
     }
+    
+    setState(() => _isScanning = true);
+    
+    try {
+      final monetization = context.read<MonetizationProvider>();
+      
+      if (!monetization.canScan) {
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PaywallScreen()),
+          );
+        }
+        return;
+      }
+
+      final doc = await _scannerService.scan();
+      if (doc != null) {
+        if (mounted) {
+          final targetSubfolder = context.read<LibraryProvider>().selectedSubfolder;
+          final forcedDoc = doc.copyWith(category: targetCategory, subfolder: targetSubfolder);
+          await context.read<LibraryProvider>().addDocument(forcedDoc);
+          
+          _ocrService.analyzeDocument(forcedDoc.filePath).then((ocrResult) {
+            if (ocrResult != null && mounted) {
+              final newName = ocrResult.name;
+              if (newName != null && newName != forcedDoc.name) {
+                context.read<LibraryProvider>().renameDocument(forcedDoc.id, newName);
+              }
+            }
+          });
+          
+          await monetization.incrementScanCount();
+          
+          final auth = context.read<AuthProvider>();
+          final libraryProvider = context.read<LibraryProvider>();
+          if (auth.isSignedIn && auth.autoSync) {
+            auth.syncService.uploadDocument(forcedDoc).then((driveId) {
+              if (driveId != null && mounted) {
+                libraryProvider.updateSyncStatus(forcedDoc.id, true, driveId: driveId);
+              }
+            });
+          }
+          
+          if (mounted) {
+            if (monetization.isAdSupported && !monetization.isPremium && (monetization.scanCount % 2 == 0)) {
+              if (_interstitialAd != null) {
+                _interstitialAd!.show();
+              }
+            }
+
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ExportScreen(document: forcedDoc),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Scan failed: $e', style: GoogleFonts.inter())),
+        );
+      }
+    } finally {
+      if (mounted) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) setState(() => _isScanning = false);
+      }
+    }
+  }
+
+  Future<void> _uploadFromGallery() async {
+    final picker = ImagePicker();
+    final pickedFiles = await picker.pickMultiImage();
+    if (pickedFiles.isEmpty) return;
+    
+    try {
+      final libraryProvider = context.read<LibraryProvider>();
+      final customPath = libraryProvider.customSaveLocation;
+      final targetCategory = libraryProvider.selectedCategory == 'All' ? 'Documents' : libraryProvider.selectedCategory;
+      final targetSubfolder = libraryProvider.selectedSubfolder;
+      
+      final Directory saveDir = customPath != null 
+          ? Directory(customPath) 
+          : await getApplicationDocumentsDirectory();
+          
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
+      }
+
+      for (var i = 0; i < pickedFiles.length; i++) {
+        final pickedFile = pickedFiles[i];
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name}';
+        final savedImage = await File(pickedFile.path).copy('${saveDir.path}${Platform.pathSeparator}$fileName');
+        
+        final newDoc = ScanDocument(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + '_$i',
+          name: 'Upload ${DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' ')}${pickedFiles.length > 1 ? ' ${i+1}' : ''}',
+          pageCount: 1,
+          filePath: savedImage.path,
+          createdAt: DateTime.now(),
+          category: targetCategory,
+          subfolder: targetSubfolder,
+        );
+        
+        if (mounted) {
+          await libraryProvider.addDocument(newDoc);
+          
+          _ocrService.analyzeDocument(newDoc.filePath).then((ocrResult) {
+              if (ocrResult != null && mounted) {
+                final newName = ocrResult.name;
+                if (newName != null && newName != newDoc.name) {
+                  libraryProvider.renameDocument(newDoc.id, newName);
+                }
+              }
+            });
+        }
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Uploaded ${pickedFiles.length} file(s) to $targetCategory', style: GoogleFonts.inter())),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading: $e', style: GoogleFonts.inter())),
+        );
+      }
+    }
+  }
+
+  Future<void> _showRenameDialog(ScanDocument doc) async {
+    final name = await _showInputDialog('Rename Document', initialValue: doc.name);
+    if (name != null && name.isNotEmpty && mounted) {
+      await context.read<LibraryProvider>().renameDocument(doc.id, name);
+    }
+  }
+
+  Future<String?> _showInputDialog(String title, {String? initialValue}) async {
+    final controller = TextEditingController(text: initialValue);
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: appSurface,
+        title: Text(title, style: GoogleFonts.spaceGrotesk(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          style: GoogleFonts.inter(color: Colors.white),
+          decoration: const InputDecoration(
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: appAccent)),
+          ),
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: GoogleFonts.inter(color: appTextMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text('Save', style: GoogleFonts.inter(color: appAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _toggleSelectionMode() {
@@ -566,13 +720,48 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 36,
                 child: Consumer<LibraryProvider>(
                   builder: (context, library, child) {
-                    final categories = ['All', 'Receipts', 'Invoices', 'IDs', 'Taxes', 'Notes', 'Documents'];
-                    return ListView.separated(
+                    final defaultCategories = ['All', 'Receipts', 'Invoices', 'IDs', 'Taxes', 'Notes', 'Documents'];
+                    final allCategories = [
+                      ...defaultCategories,
+                      ...library.sections.map((s) => s.name),
+                    ];
+                    return ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: categories.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      itemCount: allCategories.length + 1, // +1 for the add button
                       itemBuilder: (context, index) {
-                        final cat = categories[index];
+                        if (index == allCategories.length) {
+                          // Add Section Button
+                          return GestureDetector(
+                            onTap: () async {
+                              HapticFeedback.selectionClick();
+                              final name = await _showInputDialog('New Section Name');
+                              if (name != null && name.isNotEmpty) {
+                                await library.addSection(name);
+                                if (mounted) {
+                                  final auth = context.read<AuthProvider>();
+                                  if (auth.isSignedIn) {
+                                    final json = await library.exportStructureToJson();
+                                    auth.syncService.uploadStructureJson(json);
+                                  }
+                                }
+                              }
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: appSurface,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: appLine),
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.add, color: appTextMuted, size: 18),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final cat = allCategories[index];
                         final isSelected = library.selectedCategory == cat;
                         return GestureDetector(
                           onTap: () {
@@ -580,6 +769,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             library.setCategory(cat);
                           },
                           child: Container(
+                            margin: EdgeInsets.only(left: index == 0 ? 0 : 8),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
                               color: isSelected ? appAccent : appSurface,
@@ -603,63 +793,160 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Recent Scans',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Row(
+              Consumer<LibraryProvider>(
+                builder: (context, library, child) {
+                  final isCategorySelected = library.selectedCategory != 'All';
+                  return Column(
                     children: [
-                      IconButton(
-                        icon: Icon(
-                          _viewMode == ViewMode.stack ? Icons.view_agenda_rounded :
-                          _viewMode == ViewMode.grid ? Icons.grid_view_rounded :
-                          Icons.view_list_rounded,
-                          color: appTextMuted,
+                      if (isCategorySelected) ...[
+                        SizedBox(
+                          height: 36,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: library.currentSubfolders.length + 1,
+                            itemBuilder: (context, index) {
+                              if (index == library.currentSubfolders.length) {
+                                return GestureDetector(
+                                  onTap: () async {
+                                    HapticFeedback.selectionClick();
+                                    final name = await _showInputDialog('New Folder Name');
+                                    if (name != null && name.isNotEmpty) {
+                                      await library.addSubfolder(name);
+                                      if (mounted) {
+                                        final auth = context.read<AuthProvider>();
+                                        if (auth.isSignedIn) {
+                                          final json = await library.exportStructureToJson();
+                                          auth.syncService.uploadStructureJson(json);
+                                        }
+                                      }
+                                    }
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.only(left: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: appLine),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.create_new_folder_outlined, color: appTextMuted, size: 16),
+                                        const SizedBox(width: 6),
+                                        Text('Add Folder', style: GoogleFonts.inter(color: appTextMuted, fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              final sub = library.currentSubfolders[index];
+                              final isSelected = library.selectedSubfolder == sub.name;
+                              return GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  library.setSubfolder(isSelected ? null : sub.name);
+                                },
+                                child: Container(
+                                  margin: EdgeInsets.only(left: index == 0 ? 0 : 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? appAccent.withValues(alpha: 0.1) : appPaper,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: isSelected ? appAccent : Colors.transparent),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(isSelected ? Icons.folder : Icons.folder_outlined, color: isSelected ? appAccent : appTextMuted, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        sub.name,
+                                        style: GoogleFonts.inter(
+                                          color: isSelected ? appAccent : appBackground,
+                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          setState(() {
-                            if (_viewMode == ViewMode.stack) {
-                              _viewMode = ViewMode.grid;
-                            } else if (_viewMode == ViewMode.grid) {
-                              _viewMode = ViewMode.list;
-                            } else {
-                              _viewMode = ViewMode.stack;
-                            }
-                          });
-                        },
-                      ),
-                      Consumer<LibraryProvider>(
-                        builder: (context, library, child) {
-                          if (library.documents.isEmpty) return const SizedBox.shrink();
-                          return TextButton(
-                            onPressed: _toggleSelectionMode,
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        const SizedBox(height: 24),
+                      ],
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isCategorySelected 
+                              ? (library.selectedSubfolder != null ? '${library.selectedCategory} / ${library.selectedSubfolder}' : '${library.selectedCategory}') 
+                              : 'Recent Scans',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
-                            child: Text(
-                              _isSelectionMode ? 'Cancel' : 'Select',
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: appAccent,
+                          ),
+                      Row(
+                        children: [
+                          if (isCategorySelected) ...[
+                            IconButton(
+                              icon: const Icon(Icons.document_scanner, color: appAccent, size: 20),
+                              onPressed: _startScan,
+                              tooltip: 'Scan to ${library.selectedSubfolder ?? library.selectedCategory}',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.photo_library, color: appAccent, size: 20),
+                              onPressed: _uploadFromGallery,
+                              tooltip: 'Upload to ${library.selectedSubfolder ?? library.selectedCategory}',
+                            ),
+                          ],
+                          IconButton(
+                            icon: Icon(
+                              _viewMode == ViewMode.stack ? Icons.view_agenda_rounded :
+                              _viewMode == ViewMode.grid ? Icons.grid_view_rounded :
+                              Icons.view_list_rounded,
+                              color: appTextMuted,
+                            ),
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              setState(() {
+                                if (_viewMode == ViewMode.stack) {
+                                  _viewMode = ViewMode.grid;
+                                } else if (_viewMode == ViewMode.grid) {
+                                  _viewMode = ViewMode.list;
+                                } else {
+                                  _viewMode = ViewMode.stack;
+                                }
+                              });
+                            },
+                          ),
+                          if (library.documents.isNotEmpty)
+                            TextButton(
+                              onPressed: _toggleSelectionMode,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                _isSelectionMode ? 'Cancel' : 'Select',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: appAccent,
+                                ),
                               ),
                             ),
-                          );
-                        },
+                        ],
+                      ),
+                        ],
                       ),
                     ],
-                  ),
-                ],
+                  );
+                },
               ),
               const SizedBox(height: 16),
               Expanded(
