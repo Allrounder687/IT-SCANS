@@ -26,12 +26,16 @@ jobs:
         run: flutter pub get
 
       - name: Decode keystore
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        env:
+          HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/release.jks
 
       - name: Write key.properties
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        env:
+          HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
         run: |
           cat > android/key.properties <<EOF
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
@@ -41,9 +45,10 @@ jobs:
           EOF
 
       - name: Create google-services.json
-        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          HAS_GS_JSON: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+        if: ${{ env.HAS_GS_JSON == 'true' }}
         run: echo $GOOGLE_SERVICES_JSON | base64 --decode > android/app/google-services.json
 
       - name: Build App Bundle
