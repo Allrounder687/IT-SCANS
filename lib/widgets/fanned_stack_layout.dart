@@ -108,9 +108,11 @@ class _FannedStackLayoutState extends State<FannedStackLayout> {
         color: Colors.transparent,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return Stack(
-              clipBehavior: Clip.none,
-              children: List.generate(displayCount, (index) {
+            return SizedBox(
+              width: constraints.maxWidth,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: List.generate(displayCount, (index) {
                 final reverseIndex = displayCount - 1 - index;
                 final doc = displayDocs[index];
                 
@@ -140,6 +142,7 @@ class _FannedStackLayoutState extends State<FannedStackLayout> {
                   ),
                 );
               }),
+              ),
             );
           }
         ),

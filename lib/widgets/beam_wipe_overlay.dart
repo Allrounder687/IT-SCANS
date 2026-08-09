@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math' as math;
 import '../core/theme.dart';
 
 class BeamWipeOverlay extends StatefulWidget {
@@ -66,7 +67,7 @@ class _BeamWipeOverlayState extends State<BeamWipeOverlay> with SingleTickerProv
               top: beamY,
               left: 0,
               right: 0,
-              bottom: 0,
+              height: math.max(0, screenHeight - beamY),
               child: Container(
                 decoration: BoxDecoration(
                   color: appBackground,
