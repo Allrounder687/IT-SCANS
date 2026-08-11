@@ -653,18 +653,22 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Consumer<AuthProvider>(
-                    builder: (context, auth, child) {
-                      return Text(
-                        _getGreeting(auth.currentUser?.displayName),
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: -1,
-                        ),
-                      );
-                    },
+                  Expanded(
+                    child: Consumer<AuthProvider>(
+                      builder: (context, auth, child) {
+                        return Text(
+                          _getGreeting(auth.currentUser?.displayName),
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: -1,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
+                    ),
                   ),
                   Row(
                     children: [
