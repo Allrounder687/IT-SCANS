@@ -156,16 +156,19 @@ class ExportScreen extends StatelessWidget {
         SnackBar(content: Text('Sending document...', style: GoogleFonts.inter())),
       );
       
-      final success = await _shareService.shareDocument(document.filePath, '${document.name}.pdf', finalEmail);
-      
-      if (context.mounted) {
-        if (success) {
+      try {
+        await _shareService.shareDocument(document.filePath, '${document.name}.pdf', finalEmail);
+        
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Document sent to $finalEmail successfully!', style: GoogleFonts.inter(color: Colors.black)), backgroundColor: appAccent),
           );
-        } else {
+        }
+      } catch (e) {
+        if (context.mounted) {
+          final errorMsg = e.toString().replaceAll('Exception: ', '');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to send document. Ensure you are signed in.', style: GoogleFonts.inter())),
+            SnackBar(content: Text('Failed: $errorMsg', style: GoogleFonts.inter())),
           );
         }
       }

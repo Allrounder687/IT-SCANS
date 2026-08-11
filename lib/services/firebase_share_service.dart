@@ -13,37 +13,34 @@ class FirebaseShareService {
   bool get _isFirebaseInitialized => Firebase.apps.isNotEmpty;
 
   /// Uploads a PDF to the user's Google Drive, gets a public link, and creates a notification document in the recipient's inbox.
-  Future<bool> shareDocument(String pdfPath, String originalName, String recipientEmail) async {
+  Future<void> shareDocument(String pdfPath, String originalName, String recipientEmail) async {
     if (!_isFirebaseInitialized) {
-      debugPrint('Firebase is not initialized.');
-      return false;
+      throw Exception('Firebase is not initialized.');
     }
+    
+    final firebaseUser = _auth.currentUser;
+    final syncUser = _syncService.currentUser;
+    final userEmail = firebaseUser?.email ?? syncUser?.email;
+    
+    if (userEmail == null) {
+      throw Exception('Must be logged in to share.');
+    }
+
+    final file = File(pdfPath);
+    if (!await file.exists()) {
+      throw Exception('File does not exist.');
+    }
+
+    // 1. Upload to Google Drive and get public link
+    final uniqueId = DateTime.now().millisecondsSinceEpoch.toString();
+    final downloadUrl = await _syncService.uploadAndGetPublicLink(pdfPath, '${originalName}_$uniqueId.pdf');
+    
+    if (downloadUrl == null) {
+      throw Exception('Failed to upload to Google Drive. Check your connection or permissions.');
+    }
+
+    // 2. Create Inbox Document in Firestore
     try {
-      final firebaseUser = _auth.currentUser;
-      final syncUser = _syncService.currentUser;
-      final userEmail = firebaseUser?.email ?? syncUser?.email;
-      
-      if (userEmail == null) {
-        debugPrint('Must be logged in to share.');
-        return false;
-      }
-
-      final file = File(pdfPath);
-      if (!await file.exists()) {
-        debugPrint('File does not exist.');
-        return false;
-      }
-
-      // 1. Upload to Google Drive and get public link
-      final uniqueId = DateTime.now().millisecondsSinceEpoch.toString();
-      final downloadUrl = await _syncService.uploadAndGetPublicLink(pdfPath, '${originalName}_$uniqueId.pdf');
-      
-      if (downloadUrl == null) {
-        debugPrint('Failed to upload to Google Drive.');
-        return false;
-      }
-
-      // 2. Create Inbox Document in Firestore
       final recipientEmailLower = recipientEmail.toLowerCase().trim();
       await _firestore
           .collection('users')
@@ -58,11 +55,9 @@ class FirebaseShareService {
         'fileSize': await file.length(),
         'isRead': false,
       });
-
-      return true;
     } catch (e) {
-      debugPrint('Error sharing document: $e');
-      return false;
+      debugPrint('Firestore write failed: $e');
+      throw Exception('Cloud Database Error: $e');
     }
   }
 
