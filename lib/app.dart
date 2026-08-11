@@ -17,14 +17,16 @@ class ItScansApp extends StatelessWidget {
       theme: buildAppTheme(),
       builder: (context, child) {
         final accessibility = context.watch<AccessibilityProvider>();
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(accessibility.currentScale),
+        return BiometricWrapper(
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(accessibility.currentScale),
+            ),
+            child: child!,
           ),
-          child: child!,
         );
       },
-      home: const BiometricWrapper(child: HomeScreen()),
+      home: const HomeScreen(),
     );
   }
 }

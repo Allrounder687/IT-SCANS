@@ -125,56 +125,64 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
 
   @override
   Widget build(BuildContext context) {
-    if (!_requiresAuth || _isAuthenticated) {
-      return widget.child;
-    }
+    return Stack(
+      textDirection: TextDirection.ltr,
+      children: [
+        // Always render the child to preserve its state and ongoing tasks (e.g. document scanning)
+        widget.child,
 
-    return Scaffold(
-      backgroundColor: appBackground,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lock_outline, size: 64, color: appAccent),
-            const SizedBox(height: 24),
-            Text(
-              'App Locked',
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Unlock to access your documents',
-              style: GoogleFonts.inter(
-                color: appTextMuted,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _authenticate,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: appAccent,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+        // Show the lock screen as an overlay when auth is required
+        if (_requiresAuth && !_isAuthenticated)
+          Positioned.fill(
+            child: Scaffold(
+              backgroundColor: appBackground,
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.lock_outline, size: 64, color: appAccent),
+                    const SizedBox(height: 24),
+                    Text(
+                      'App Locked',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Unlock to access your documents',
+                      style: GoogleFonts.inter(
+                        color: appTextMuted,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: _authenticate,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: appAccent,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Unlock Now',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Text(
-                'Unlock Now',
-                style: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
             ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 }
