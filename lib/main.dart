@@ -24,13 +24,13 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
   
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
-  }
+  // try {
+  //   await Firebase.initializeApp(
+  //     options: DefaultFirebaseOptions.currentPlatform,
+  //   );
+  // } catch (e) {
+  //   debugPrint('Firebase initialization failed: $e');
+  // }
 
   final storageService = StorageService();
   final cloudSyncService = CloudSyncService();
