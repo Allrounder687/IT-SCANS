@@ -224,32 +224,34 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
+      final library = context.read<LibraryProvider>();
+      final auth = context.read<AuthProvider>();
+      
       final doc = await _scannerService.scan();
       if (doc != null) {
+        // We do not check `mounted` here to guarantee the document is saved
+        // even if the user locked the app or the widget tree changed!
+        final selectedCategory = library.selectedCategory == 'All' ? 'Documents' : library.selectedCategory;
+        final selectedSubfolder = library.selectedSubfolder;
+        
+        final updatedDoc = doc.copyWith(
+          category: selectedCategory,
+          subfolder: selectedSubfolder,
+        );
 
-        if (mounted) {
-          final library = context.read<LibraryProvider>();
-          final selectedCategory = library.selectedCategory == 'All' ? 'Documents' : library.selectedCategory;
-          final selectedSubfolder = library.selectedSubfolder;
-          
-          final updatedDoc = doc.copyWith(
-            category: selectedCategory,
-            subfolder: selectedSubfolder,
-          );
-
-          // Save document to library
-          await library.addDocument(updatedDoc);
-          
-          // Instant Background AI Naming and Auto-Categorization
-          _ocrService.analyzeDocument(updatedDoc.filePath).then((ocrResult) {
-            if (ocrResult != null && mounted) {
-              final newName = ocrResult.name;
-              if (newName != null && newName != updatedDoc.name) {
-                context.read<LibraryProvider>().renameDocument(updatedDoc.id, newName);
-              }
-              
-              // Smart Folders categorization
-              final text = ocrResult.fullText.toLowerCase();
+        // Save document to library IMMEDIATELY
+        await library.addDocument(updatedDoc);
+        
+        // Instant Background AI Naming and Auto-Categorization
+        _ocrService.analyzeDocument(updatedDoc.filePath).then((ocrResult) {
+          if (ocrResult != null) {
+            final newName = ocrResult.name;
+            if (newName != null && newName != updatedDoc.name) {
+              library.renameDocument(updatedDoc.id, newName);
+            }
+            
+            // Smart Folders categorization
+            final text = ocrResult.fullText.toLowerCase();
               String? category;
               
               if (text.contains('total') || text.contains('tax') || text.contains('receipt') || text.contains('amount due')) {

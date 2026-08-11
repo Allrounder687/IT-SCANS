@@ -19,9 +19,19 @@ class OcrService {
       document = await PdfDocument.openFile(pdfPath);
       final page = await document.getPage(1);
       
+      // Calculate a safe scale factor to prevent OOM on mid-range devices.
+      // We aim for a max dimension of around 1600 pixels which is plenty for OCR.
+      double scale = 1.0;
+      final maxDim = page.width > page.height ? page.width : page.height;
+      if (maxDim > 800) {
+        scale = 1600 / maxDim;
+      } else {
+        scale = 2.0; // If it's a small PDF (e.g. 595x842 points), 2x scale is safe
+      }
+      
       final pageImage = await page.render(
-        width: page.width * 2,
-        height: page.height * 2,
+        width: page.width * scale,
+        height: page.height * scale,
         format: PdfPageImageFormat.jpeg,
       );
       
