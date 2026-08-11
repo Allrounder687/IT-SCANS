@@ -124,14 +124,19 @@ class CloudSyncService {
   bool get _isFirebaseInitialized => Firebase.apps.isNotEmpty;
 
   Future<void> _firebaseAuthWithGoogle(GoogleSignInAccount account) async {
-    if (!_isFirebaseInitialized) return;
+    debugPrint('Attempting Firebase auth with Google...');
+    if (!_isFirebaseInitialized) {
+      debugPrint('Firebase is NOT initialized yet!');
+      return;
+    }
     try {
       final GoogleSignInAuthentication googleAuth = await account.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      debugPrint('Firebase auth successful! UID: ${userCred.user?.uid}');
     } catch (e) {
       debugPrint('Firebase auth failed: $e');
     }
