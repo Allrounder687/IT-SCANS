@@ -24,7 +24,6 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
   
-  /*
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -32,7 +31,6 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
-  */
 
   final storageService = StorageService();
   final cloudSyncService = CloudSyncService();
