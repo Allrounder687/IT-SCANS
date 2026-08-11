@@ -313,7 +313,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             );
           }
-        }
       }
     } catch (e) {
       if (mounted) {
