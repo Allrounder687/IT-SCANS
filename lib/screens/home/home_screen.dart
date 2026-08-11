@@ -186,22 +186,15 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  String _getGreeting(String? name) {
+  String _getGreeting() {
     final hour = DateTime.now().hour;
-    String greeting;
     if (hour < 12) {
-      greeting = 'Good Morning';
+      return 'Good morning,';
     } else if (hour < 17) {
-      greeting = 'Good Afternoon';
+      return 'Good afternoon,';
     } else {
-      greeting = 'Good Evening';
+      return 'Good evening,';
     }
-    
-    if (name != null && name.isNotEmpty) {
-      final firstName = name.split(' ').first;
-      return '$greeting, $firstName.';
-    }
-    return '$greeting.';
   }
 
   Future<void> _startScan() async {
@@ -656,16 +649,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: Consumer<AuthProvider>(
                       builder: (context, auth, child) {
-                        return Text(
-                          _getGreeting(auth.currentUser?.displayName),
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: -1,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        final name = auth.currentUser?.displayName;
+                        final firstName = (name != null && name.isNotEmpty) ? name.split(' ').first : 'there';
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _getGreeting(),
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: appTextMuted,
+                              ),
+                            ),
+                            Text(
+                              firstName,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: -1,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         );
                       },
                     ),
