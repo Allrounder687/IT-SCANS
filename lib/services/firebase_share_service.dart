@@ -19,8 +19,11 @@ class FirebaseShareService {
       return false;
     }
     try {
-      final user = _auth.currentUser;
-      if (user == null || user.email == null) {
+      final firebaseUser = _auth.currentUser;
+      final syncUser = _syncService.currentUser;
+      final userEmail = firebaseUser?.email ?? syncUser?.email;
+      
+      if (userEmail == null) {
         debugPrint('Must be logged in to share.');
         return false;
       }
@@ -48,7 +51,7 @@ class FirebaseShareService {
           .collection('inbox')
           .doc(uniqueId)
           .set({
-        'senderEmail': user.email,
+        'senderEmail': userEmail,
         'fileName': originalName,
         'downloadUrl': downloadUrl,
         'timestamp': FieldValue.serverTimestamp(),
