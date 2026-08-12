@@ -66,7 +66,9 @@ class OcrService {
       debugPrint('OCR Auto-naming failed: $e');
       return null;
     } finally {
-      document?.close();
+      if (document != null) {
+        await document.close();
+      }
     }
   }
 

@@ -42,8 +42,9 @@ class ScannerService {
           filePath = copiedFile.path;
         }
         
-        // Generate a fast generic name contextually. Background OCR in home_screen will rename it later.
-        String docName = 'Scan ${DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' ')}';
+        // Generate a name contextually
+        final ocrResult = await _ocrService.analyzeDocument(filePath);
+        String docName = ocrResult?.name ?? 'Scan ${DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' ')}';
         
         return ScanDocument(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -51,8 +52,8 @@ class ScannerService {
           pageCount: pageCount,
           filePath: filePath,
           createdAt: DateTime.now(),
-          category: 'Documents', // Default category, background OCR will categorize it
-          extractedText: null, // Background OCR will extract text
+          category: ocrResult?.category ?? 'Documents',
+          extractedText: ocrResult?.fullText,
         );
       } else {
         throw Exception("Could not extract a valid file path from the scan result");

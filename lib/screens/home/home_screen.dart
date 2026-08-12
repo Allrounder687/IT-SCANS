@@ -239,44 +239,11 @@ class _HomeScreenState extends State<HomeScreen> {
           subfolder: selectedSubfolder,
         );
 
+        // Document is already OCR'd and categorized by ScannerService
         // Save document to library IMMEDIATELY
         await library.addDocument(updatedDoc);
         
-        // Instant Background AI Naming and Auto-Categorization
-        _ocrService.analyzeDocument(updatedDoc.filePath).then((ocrResult) {
-          if (ocrResult != null) {
-            final newName = ocrResult.name;
-            if (newName != null && newName != updatedDoc.name) {
-              library.renameDocument(updatedDoc.id, newName);
-            }
-            
-            // Smart Folders categorization
-            final text = ocrResult.fullText.toLowerCase();
-              String? category;
-              
-              if (text.contains('total') || text.contains('tax') || text.contains('receipt') || text.contains('amount due')) {
-                category = 'Receipts';
-              } else if (text.contains('invoice') || text.contains('due date') || text.contains('bill to')) {
-                category = 'Invoices';
-              } else if (text.contains('dob') || text.contains('expiry') || text.contains('license') || text.contains('passport') || text.contains('id card')) {
-                category = 'IDs';
-              }
-              
-              if (category != null && updatedDoc.category == 'Documents' && updatedDoc.subfolder == null) {
-                // Only override with smart folders if we are in generic 'Documents' section
-                context.read<LibraryProvider>().updateDocumentCategory(updatedDoc.id, category);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Categorized as $category', style: GoogleFonts.inter()),
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: appSurface,
-                  ),
-                );
-              }
-            }
-          });
-          
-          // Increment the scan counter
+        // Increment the scan counter
           await monetization.incrementScanCount();
           
           // Trigger Auto-Sync if enabled
