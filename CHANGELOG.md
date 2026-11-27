@@ -7,6 +7,15 @@ made — not batched later.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-11-27
+
+### Changed
+- **Horizontal PDF Swiping:** Switched PDF viewing in `AppPdfViewer` to horizontal left/right page swiping (`swipeHorizontal: true` on mobile, `Axis.horizontal` on desktop) with a live page indicator pill (`current / total`).
+- **Responsive Phone Optimization & Real-Estate Recovery:**
+  - Introduced `AppLayout` (`lib/core/responsive.dart`) to replace hardcoded paddings, gaps, card dimensions, and grid column counts with screen-size-adaptive values across `HomeScreen`, `ExportScreen`, `PaywallScreen`, `SettingsScreen`, `InboxScreen`, `CloudManagementScreen`, and `BiometricWrapper`.
+  - Removed the double-padded opaque `bottomNavigationBar` dead zone behind `ScanButton` and floated the scan CTA cleanly over the document feed, reclaiming vertical screen height.
+  - Compacted the `HomeScreen` greeting row, search bar (with clear button), category pills, and section header, and fixed `RotatingSubtitle` metadata overlap.
+
 ## [1.0.5] - 2026-11-27
 
 ### Fixed

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/responsive.dart';
 import '../core/theme.dart';
 
 class BiometricWrapper extends StatefulWidget {
@@ -141,6 +142,7 @@ class _BiometricWrapperState extends State<BiometricWrapper>
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
     return Stack(
       textDirection: TextDirection.ltr,
       children: [
@@ -149,51 +151,61 @@ class _BiometricWrapperState extends State<BiometricWrapper>
           Positioned.fill(
             child: Scaffold(
               backgroundColor: appBackground,
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.lock_outline, size: 64, color: appAccent),
-                    const SizedBox(height: 24),
-                    Text(
-                      'App Locked',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Unlock to access your documents',
-                      style: GoogleFonts.inter(
-                        color: appTextMuted,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: _authenticate,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: appAccent,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 16,
+              body: SafeArea(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(layout.horizontalPadding),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.lock_outline,
+                          size: 64,
+                          color: appAccent,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        const SizedBox(height: 20),
+                        Text(
+                          'App Locked',
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        'Unlock Now',
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                        const SizedBox(height: 8),
+                        Text(
+                          'Unlock to access your documents',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            color: appTextMuted,
+                            fontSize: 15,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 28),
+                        ElevatedButton(
+                          onPressed: _authenticate,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: appAccent,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Unlock Now',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

@@ -45,44 +45,61 @@ class _TestMonetizationService extends MonetizationService {
   Future<int> getPurchasedScans() async => 0;
 }
 
+Future<void> _pumpTestApp(WidgetTester tester, Size screenSize) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+
+  tester.view.physicalSize = screenSize;
+  tester.view.devicePixelRatio = 1.0;
+
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => LibraryProvider(_TestStorageService()),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => MonetizationProvider(_TestMonetizationService()),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(_TestCloudSyncService(), prefs),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AccessibilityProvider(prefs),
+        ),
+        ChangeNotifierProxyProvider<LibraryProvider, InboxProvider>(
+          create: (context) => InboxProvider(context.read<LibraryProvider>()),
+          update: (context, library, previous) =>
+              previous ?? InboxProvider(library),
+        ),
+      ],
+      child: const ItScansApp(),
+    ),
+  );
+
+  await tester.pump(const Duration(milliseconds: 700));
+  await tester.pump();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('App boots and shows the home screen', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(
-            create: (_) => LibraryProvider(_TestStorageService()),
-          ),
-          ChangeNotifierProvider(
-            create: (_) => MonetizationProvider(_TestMonetizationService()),
-          ),
-          ChangeNotifierProvider(
-            create: (_) => AuthProvider(_TestCloudSyncService(), prefs),
-          ),
-          ChangeNotifierProvider(
-            create: (_) => AccessibilityProvider(prefs),
-          ),
-          ChangeNotifierProxyProvider<LibraryProvider, InboxProvider>(
-            create: (context) => InboxProvider(context.read<LibraryProvider>()),
-            update: (context, library, previous) =>
-                previous ?? InboxProvider(library),
-          ),
-        ],
-        child: const ItScansApp(),
-      ),
-    );
-
-    // Let the 600ms BeamWipeOverlay animation and initial async loads settle.
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pump();
+  testWidgets('App boots cleanly on compact phone (320x568)', (tester) async {
+    addTearDown(() => tester.view.resetPhysicalSize());
+    await _pumpTestApp(tester, const Size(320, 568));
 
     expect(find.byType(Scaffold), findsWidgets);
     expect(find.text('Scan document'), findsOneWidget);
     expect(find.text('Recent Scans'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('App boots cleanly on tablet (800x1280)', (tester) async {
+    addTearDown(() => tester.view.resetPhysicalSize());
+    await _pumpTestApp(tester, const Size(800, 1280));
+
+    expect(find.text('Scan document'), findsOneWidget);
+    expect(find.text('Recent Scans'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

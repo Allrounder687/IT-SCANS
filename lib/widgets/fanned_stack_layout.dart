@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../core/responsive.dart';
+import '../core/theme.dart';
 import '../models/scan_document.dart';
 import 'document_card.dart';
 
@@ -14,6 +17,7 @@ class FannedStackLayout extends StatefulWidget {
   final Function(ScanDocument) onRename;
   final Function(String) onDelete;
   final Function(ScanDocument) onAutoName;
+  final double bottomPadding;
 
   const FannedStackLayout({
     super.key,
@@ -25,6 +29,7 @@ class FannedStackLayout extends StatefulWidget {
     required this.onRename,
     required this.onDelete,
     required this.onAutoName,
+    this.bottomPadding = 0,
   });
 
   @override
@@ -50,7 +55,7 @@ class _FannedStackLayoutState extends State<FannedStackLayout> {
     });
   }
 
-  Widget _buildCard(ScanDocument doc, int index) {
+  Widget _buildCard(ScanDocument doc) {
     final isSelected = widget.selectedDocs.contains(doc.id);
     return DocumentCard(
       document: doc,
@@ -85,12 +90,16 @@ class _FannedStackLayoutState extends State<FannedStackLayout> {
   Widget build(BuildContext context) {
     if (widget.documents.isEmpty) return const SizedBox.shrink();
 
+    final layout = AppLayout.of(context);
+
     if (!_isFanned) {
       return ListView.separated(
+        padding: EdgeInsets.only(bottom: widget.bottomPadding),
         itemCount: widget.documents.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        separatorBuilder: (context, index) =>
+            SizedBox(height: layout.cardSpacing),
         itemBuilder: (context, index) {
-          return _buildCard(widget.documents[index], index);
+          return _buildCard(widget.documents[index]);
         },
       );
     }
@@ -103,45 +112,64 @@ class _FannedStackLayoutState extends State<FannedStackLayout> {
       onTap: _toggleFanned,
       child: Container(
         color: Colors.transparent,
+        padding: EdgeInsets.only(bottom: widget.bottomPadding),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return SizedBox(
-              width: constraints.maxWidth,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: List.generate(displayCount, (index) {
-                  final reverseIndex = displayCount - 1 - index;
-                  final doc = displayDocs[index];
+            final double stepDy = layout.isCompactHeight ? 11.0 : 14.0;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: List.generate(displayCount, (index) {
+                      final reverseIndex = displayCount - 1 - index;
+                      final doc = displayDocs[index];
 
-                  final double rotation = reverseIndex == 0
-                      ? 0.0
-                      : (reverseIndex % 2 == 0 ? -0.05 : 0.05) * reverseIndex;
-                  final double dy = reverseIndex * 15.0;
+                      final double rotation = reverseIndex == 0
+                          ? 0.0
+                          : (reverseIndex % 2 == 0 ? -0.04 : 0.04) *
+                              reverseIndex;
+                      final double dy = reverseIndex * stepDy;
 
-                  return AnimatedPositioned(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutBack,
-                    top: dy,
-                    left: 0,
-                    right: 0,
-                    child: Transform.rotate(
-                      angle: rotation,
-                      child: IgnorePointer(
-                        ignoring: true,
-                        child: DocumentCard(
-                          document: doc,
-                          isSelectionMode: false,
-                          isSelected: false,
-                          onTap: () {},
-                          onRename: () {},
-                          onDelete: () {},
-                          onAutoName: () {},
+                      return AnimatedPositioned(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutBack,
+                        top: dy,
+                        left: 0,
+                        right: 0,
+                        child: Transform.rotate(
+                          angle: rotation,
+                          child: IgnorePointer(
+                            ignoring: true,
+                            child: DocumentCard(
+                              document: doc,
+                              isSelectionMode: false,
+                              isSelected: false,
+                              onTap: () {},
+                              onRename: () {},
+                              onDelete: () {},
+                              onAutoName: () {},
+                            ),
+                          ),
                         ),
+                      );
+                    }),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Center(
+                    child: Text(
+                      'Tap stack to view ${widget.documents.length} scan${widget.documents.length == 1 ? '' : 's'}',
+                      style: GoogleFonts.inter(
+                        color: appTextMuted,
+                        fontSize: 12,
                       ),
                     ),
-                  );
-                }),
-              ),
+                  ),
+                ),
+              ],
             );
           },
         ),

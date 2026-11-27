@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import '../../core/responsive.dart';
 import '../../core/theme.dart';
 import '../../models/scan_document.dart';
 import '../../providers/accessibility_provider.dart';
@@ -43,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final Set<String> _selectedDocs = {};
   final _scannerService = ScannerService();
   final _ocrService = OcrService();
+  final TextEditingController _searchController = TextEditingController();
   bool _isScanning = false;
   ViewMode _viewMode = ViewMode.stack;
   bool _isUiVisible = true;
@@ -270,6 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     _monetizationProvider?.removeListener(_onMonetizationChanged);
     _bannerAd?.dispose();
     _interstitialAd?.dispose();
@@ -279,11 +282,11 @@ class _HomeScreenState extends State<HomeScreen> {
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) {
-      return 'Good morning,';
+      return 'Good morning';
     } else if (hour < 17) {
-      return 'Good afternoon,';
+      return 'Good afternoon';
     } else {
-      return 'Good evening,';
+      return 'Good evening';
     }
   }
 
@@ -329,8 +332,6 @@ class _HomeScreenState extends State<HomeScreen> {
           subfolder: selectedSubfolder,
         );
 
-        // Save to disk & SQLite immediately without checking `mounted` so a
-        // lifecycle transition never drops a completed scan.
         await library.addDocument(updatedDoc);
         await monetization.incrementScanCount();
 
@@ -379,8 +380,6 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
 
-        // Run OCR after ExportScreen closes so Pdfium/PDFView and pdfx OCR
-        // never contend for memory at the same time.
         unawaited(_analyzeAndUpdateDocument(updatedDoc, library));
       }
     } catch (e) {
@@ -662,686 +661,751 @@ class _HomeScreenState extends State<HomeScreen> {
     return false;
   }
 
+  Widget _buildHeader(BuildContext context, AppLayout layout) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Consumer<AuthProvider>(
+            builder: (context, auth, child) {
+              final name = auth.currentUser?.displayName;
+              final firstName = (name != null && name.isNotEmpty)
+                  ? name.split(' ').first
+                  : null;
+              final greetingText = firstName != null
+                  ? '${_getGreeting()}, $firstName'
+                  : _getGreeting();
+
+              return Text(
+                greetingText,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: layout.greetingFontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              );
+            },
+          ),
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Consumer<MonetizationProvider>(
+              builder: (context, monetization, child) {
+                if (monetization.isAdSupported && !monetization.isPremium) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 4.0),
+                    child: TextButton.icon(
+                      onPressed: () {
+                        unawaited(
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PaywallScreen(),
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.workspace_premium,
+                        color: appAccent,
+                        size: 16,
+                      ),
+                      label: Text(
+                        'Pro',
+                        style: GoogleFonts.inter(
+                          color: appAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: appAccent.withValues(alpha: 0.12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+            Consumer<AccessibilityProvider>(
+              builder: (context, accessibility, child) {
+                if (accessibility.isLargeTextEnabled) {
+                  return IconButton(
+                    visualDensity: VisualDensity.compact,
+                    constraints:
+                        const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.text_increase,
+                      color: appAccent,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      unawaited(HapticFeedback.selectionClick());
+                      unawaited(accessibility.toggleLargeText());
+                    },
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+            Consumer<InboxProvider>(
+              builder: (context, inbox, child) {
+                const icon = Icon(
+                  Icons.inbox_outlined,
+                  color: Colors.white,
+                  size: 22,
+                );
+                return IconButton(
+                  visualDensity: VisualDensity.compact,
+                  constraints:
+                      const BoxConstraints(minWidth: 36, minHeight: 36),
+                  padding: EdgeInsets.zero,
+                  icon: inbox.unreadCount > 0
+                      ? Badge(
+                          label: Text('${inbox.unreadCount}'),
+                          child: icon,
+                        )
+                      : icon,
+                  onPressed: () {
+                    unawaited(
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const InboxScreen(),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: EdgeInsets.zero,
+              icon: const Icon(
+                Icons.settings,
+                color: appTextMuted,
+                size: 22,
+              ),
+              onPressed: () {
+                unawaited(
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar(AppLayout layout) {
+    return SizedBox(
+      height: layout.searchBarHeight,
+      child: Consumer<LibraryProvider>(
+        builder: (context, library, child) {
+          return TextField(
+            controller: _searchController,
+            style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+            textAlignVertical: TextAlignVertical.center,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Search documents...',
+              hintStyle: GoogleFonts.inter(color: appTextMuted, fontSize: 14),
+              prefixIcon: const Icon(
+                Icons.search,
+                color: appTextMuted,
+                size: 19,
+              ),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 38,
+                minHeight: 36,
+              ),
+              suffixIcon: library.searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: appTextMuted,
+                        size: 18,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 36,
+                        minHeight: 36,
+                      ),
+                      onPressed: () {
+                        _searchController.clear();
+                        library.setSearchQuery('');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: appSurface,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            onChanged: (val) => library.setSearchQuery(val),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCategoryPills(AppLayout layout) {
+    return SizedBox(
+      height: layout.chipHeight,
+      child: Consumer<LibraryProvider>(
+        builder: (context, library, child) {
+          const defaultCategories = [
+            'All',
+            'Receipts',
+            'Invoices',
+            'IDs',
+            'Taxes',
+            'Notes',
+            'Documents',
+          ];
+          final allCategories = [
+            ...defaultCategories,
+            ...library.sections.map((s) => s.name),
+          ];
+          return ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: allCategories.length + 1,
+            itemBuilder: (context, index) {
+              if (index == allCategories.length) {
+                return GestureDetector(
+                  onTap: () async {
+                    unawaited(HapticFeedback.selectionClick());
+                    final auth = context.read<AuthProvider>();
+                    final name = await _showInputDialog('New Section Name');
+                    if (name != null && name.isNotEmpty) {
+                      await library.addSection(name);
+                      if (auth.isSignedIn) {
+                        final json = await library.exportStructureToJson();
+                        unawaited(
+                          auth.syncService.uploadStructureJson(json),
+                        );
+                      }
+                    }
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: appSurface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: appLine),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.add,
+                        color: appTextMuted,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final cat = allCategories[index];
+              final isSelected = library.selectedCategory == cat;
+              return GestureDetector(
+                onTap: () {
+                  unawaited(HapticFeedback.selectionClick());
+                  library.setCategory(cat);
+                },
+                child: Container(
+                  margin: EdgeInsets.only(left: index == 0 ? 0 : 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? appAccent : appSurface,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: Text(
+                      cat,
+                      style: GoogleFonts.inter(
+                        color: isSelected ? Colors.black : Colors.white,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSubfoldersAndSectionHeader(AppLayout layout) {
+    return Consumer<LibraryProvider>(
+      builder: (context, library, child) {
+        final isCategorySelected = library.selectedCategory != 'All';
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isCategorySelected) ...[
+              SizedBox(
+                height: layout.chipHeight,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: library.currentSubfolders.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == library.currentSubfolders.length) {
+                      return GestureDetector(
+                        onTap: () async {
+                          unawaited(HapticFeedback.selectionClick());
+                          final auth = context.read<AuthProvider>();
+                          final name =
+                              await _showInputDialog('New Folder Name');
+                          if (name != null && name.isNotEmpty) {
+                            await library.addSubfolder(name);
+                            if (auth.isSignedIn) {
+                              final json =
+                                  await library.exportStructureToJson();
+                              unawaited(
+                                auth.syncService.uploadStructureJson(json),
+                              );
+                            }
+                          }
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: appLine),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.create_new_folder_outlined,
+                                color: appTextMuted,
+                                size: 15,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Add Folder',
+                                style: GoogleFonts.inter(
+                                  color: appTextMuted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    final sub = library.currentSubfolders[index];
+                    final isSelected = library.selectedSubfolder == sub.name;
+                    return GestureDetector(
+                      onTap: () {
+                        unawaited(HapticFeedback.selectionClick());
+                        library.setSubfolder(isSelected ? null : sub.name);
+                      },
+                      child: Container(
+                        margin: EdgeInsets.only(left: index == 0 ? 0 : 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? appAccent.withValues(alpha: 0.12)
+                              : appPaper,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected ? appAccent : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isSelected ? Icons.folder : Icons.folder_outlined,
+                              color: isSelected ? appAccent : appTextMuted,
+                              size: 15,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              sub.name,
+                              style: GoogleFonts.inter(
+                                color: isSelected ? appAccent : appBackground,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: layout.tightGap),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    isCategorySelected
+                        ? (library.selectedSubfolder != null
+                            ? '${library.selectedCategory} / ${library.selectedSubfolder}'
+                            : library.selectedCategory)
+                        : 'Recent Scans',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: layout.sectionTitleFontSize,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isCategorySelected) ...[
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 34,
+                          minHeight: 34,
+                        ),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(
+                          Icons.document_scanner,
+                          color: appAccent,
+                          size: 19,
+                        ),
+                        onPressed: _startScan,
+                        tooltip:
+                            'Scan to ${library.selectedSubfolder ?? library.selectedCategory}',
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 34,
+                          minHeight: 34,
+                        ),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(
+                          Icons.photo_library,
+                          color: appAccent,
+                          size: 19,
+                        ),
+                        onPressed: _uploadFromGallery,
+                        tooltip:
+                            'Upload to ${library.selectedSubfolder ?? library.selectedCategory}',
+                      ),
+                    ],
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 34,
+                        minHeight: 34,
+                      ),
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        _viewMode == ViewMode.stack
+                            ? Icons.view_agenda_rounded
+                            : _viewMode == ViewMode.grid
+                                ? Icons.grid_view_rounded
+                                : Icons.view_list_rounded,
+                        color: appTextMuted,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        unawaited(HapticFeedback.lightImpact());
+                        setState(() {
+                          if (_viewMode == ViewMode.stack) {
+                            _viewMode = ViewMode.grid;
+                          } else if (_viewMode == ViewMode.grid) {
+                            _viewMode = ViewMode.list;
+                          } else {
+                            _viewMode = ViewMode.stack;
+                          }
+                        });
+                      },
+                    ),
+                    if (library.documents.isNotEmpty)
+                      TextButton(
+                        onPressed: _toggleSelectionMode,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          _isSelectionMode ? 'Cancel' : 'Select',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: appAccent,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDocumentFeed(AppLayout layout, double listBottomPadding) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: _handleScrollNotification,
+      child: Consumer<LibraryProvider>(
+        builder: (context, library, child) {
+          if (library.isLoading) {
+            return const Center(
+              child: CircularProgressIndicator(color: appAccent),
+            );
+          }
+          if (library.documents.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: listBottomPadding),
+                child: Text(
+                  'No documents yet.\nTap the scanner to digitize your first page.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    color: appTextMuted,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            );
+          }
+          if (_viewMode == ViewMode.grid) {
+            return GridView.builder(
+              padding: EdgeInsets.only(bottom: listBottomPadding),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: layout.gridColumns,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: layout.gridAspectRatio,
+              ),
+              itemCount: library.documents.length,
+              itemBuilder: (context, index) {
+                final doc = library.documents[index];
+                return DocumentGridCard(
+                  document: doc,
+                  isSelectionMode: _isSelectionMode,
+                  isSelected: _selectedDocs.contains(doc.id),
+                  onTap: () {
+                    if (_isSelectionMode) {
+                      _toggleDocumentSelection(doc.id);
+                    } else {
+                      unawaited(
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ExportScreen(document: doc),
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  onRename: () {
+                    if (_isSelectionMode) {
+                      _toggleDocumentSelection(doc.id);
+                    } else {
+                      unawaited(_showRenameDialog(doc));
+                    }
+                  },
+                  onDelete: () => _handleSingleDelete(doc),
+                  onAutoName: () => _handleAutoName(doc),
+                );
+              },
+            );
+          }
+
+          if (_viewMode == ViewMode.list) {
+            return ListView.separated(
+              padding: EdgeInsets.only(bottom: listBottomPadding),
+              itemCount: library.documents.length,
+              separatorBuilder: (context, index) =>
+                  SizedBox(height: layout.cardSpacing),
+              itemBuilder: (context, index) {
+                final doc = library.documents[index];
+                return DocumentCard(
+                  document: doc,
+                  isSelectionMode: _isSelectionMode,
+                  isSelected: _selectedDocs.contains(doc.id),
+                  onTap: () {
+                    if (_isSelectionMode) {
+                      _toggleDocumentSelection(doc.id);
+                    } else {
+                      unawaited(
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ExportScreen(document: doc),
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  onRename: () {
+                    if (_isSelectionMode) {
+                      _toggleDocumentSelection(doc.id);
+                    } else {
+                      unawaited(_showRenameDialog(doc));
+                    }
+                  },
+                  onDelete: () => _handleSingleDelete(doc),
+                  onAutoName: () => _handleAutoName(doc),
+                );
+              },
+            );
+          }
+
+          return FannedStackLayout(
+            documents: library.documents,
+            isSelectionMode: _isSelectionMode,
+            selectedDocs: _selectedDocs,
+            bottomPadding: listBottomPadding,
+            onSelect: _toggleDocumentSelection,
+            onTap: (doc) => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ExportScreen(document: doc),
+              ),
+            ),
+            onRename: _showRenameDialog,
+            onDelete: (id) {
+              final doc = library.findById(id);
+              if (doc != null) {
+                _handleSingleDelete(doc);
+              }
+            },
+            onAutoName: _handleAutoName,
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
+    final monetization = context.watch<MonetizationProvider>();
+    final showAds = monetization.isAdSupported && !monetization.isPremium;
+    final adHeight = showAds
+        ? (_isBannerAdLoaded && _bannerAd != null
+            ? _bannerAd!.size.height.toDouble()
+            : 50.0)
+        : 0.0;
+    final bottomClearance =
+        _isSelectionMode ? 80.0 : layout.floatingDockClearance + adHeight;
+
     return BeamWipeOverlay(
       child: Scaffold(
         backgroundColor: appBackground,
         body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          bottom: false,
+          child: Stack(
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: layout.horizontalPadding,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    SizedBox(height: layout.topGap),
+                    _buildHeader(context, layout),
+                    SizedBox(height: layout.tightGap),
+                    _buildSearchBar(layout),
+                    SizedBox(height: layout.tightGap),
+                    _buildCategoryPills(layout),
+                    SizedBox(height: layout.sectionGap),
+                    _buildSubfoldersAndSectionHeader(layout),
+                    SizedBox(height: layout.tightGap),
                     Expanded(
-                      child: Consumer<AuthProvider>(
-                        builder: (context, auth, child) {
-                          final name = auth.currentUser?.displayName;
-                          final firstName = (name != null && name.isNotEmpty)
-                              ? name.split(' ').first
-                              : 'there';
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _getGreeting(),
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  color: appTextMuted,
-                                ),
-                              ),
-                              Text(
-                                firstName,
-                                style: GoogleFonts.spaceGrotesk(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  letterSpacing: -1,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          );
-                        },
+                      child: _buildDocumentFeed(
+                        layout,
+                        bottomClearance + layout.viewPadding.bottom,
                       ),
-                    ),
-                    Row(
-                      children: [
-                        Consumer<MonetizationProvider>(
-                          builder: (context, monetization, child) {
-                            if (monetization.isAdSupported &&
-                                !monetization.isPremium) {
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: TextButton.icon(
-                                  onPressed: () {
-                                    unawaited(
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const PaywallScreen(),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.workspace_premium,
-                                    color: appAccent,
-                                    size: 20,
-                                  ),
-                                  label: Text(
-                                    'Upgrade',
-                                    style: GoogleFonts.inter(
-                                      color: appAccent,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                    backgroundColor:
-                                        appAccent.withValues(alpha: 0.1),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                        Consumer<AccessibilityProvider>(
-                          builder: (context, accessibility, child) {
-                            if (accessibility.isLargeTextEnabled) {
-                              return IconButton(
-                                icon: const Icon(
-                                  Icons.text_increase,
-                                  color: appAccent,
-                                ),
-                                onPressed: () {
-                                  unawaited(HapticFeedback.selectionClick());
-                                  unawaited(accessibility.toggleLargeText());
-                                },
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        ),
-                        Consumer<InboxProvider>(
-                          builder: (context, inbox, child) {
-                            const icon = Icon(
-                              Icons.inbox_outlined,
-                              color: Colors.white,
-                            );
-                            return IconButton(
-                              icon: inbox.unreadCount > 0
-                                  ? Badge(
-                                      label: Text('${inbox.unreadCount}'),
-                                      child: icon,
-                                    )
-                                  : icon,
-                              onPressed: () {
-                                unawaited(
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const InboxScreen(),
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.settings, color: appTextMuted),
-                          onPressed: () {
-                            unawaited(
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const SettingsScreen(),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Consumer<LibraryProvider>(
-                  builder: (context, library, child) {
-                    return TextField(
-                      style: GoogleFonts.inter(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Search documents...',
-                        hintStyle: GoogleFonts.inter(color: appTextMuted),
-                        prefixIcon:
-                            const Icon(Icons.search, color: appTextMuted),
-                        filled: true,
-                        fillColor: appSurface,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onChanged: (val) => library.setSearchQuery(val),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 36,
-                  child: Consumer<LibraryProvider>(
-                    builder: (context, library, child) {
-                      const defaultCategories = [
-                        'All',
-                        'Receipts',
-                        'Invoices',
-                        'IDs',
-                        'Taxes',
-                        'Notes',
-                        'Documents',
-                      ];
-                      final allCategories = [
-                        ...defaultCategories,
-                        ...library.sections.map((s) => s.name),
-                      ];
-                      return ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: allCategories.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == allCategories.length) {
-                            return GestureDetector(
-                              onTap: () async {
-                                unawaited(HapticFeedback.selectionClick());
-                                final auth = context.read<AuthProvider>();
-                                final name =
-                                    await _showInputDialog('New Section Name');
-                                if (name != null && name.isNotEmpty) {
-                                  await library.addSection(name);
-                                  if (auth.isSignedIn) {
-                                    final json =
-                                        await library.exportStructureToJson();
-                                    unawaited(
-                                      auth.syncService
-                                          .uploadStructureJson(json),
-                                    );
-                                  }
-                                }
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.only(left: 8),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: appSurface,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: appLine),
-                                ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.add,
-                                    color: appTextMuted,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-
-                          final cat = allCategories[index];
-                          final isSelected = library.selectedCategory == cat;
-                          return GestureDetector(
-                            onTap: () {
-                              unawaited(HapticFeedback.selectionClick());
-                              library.setCategory(cat);
-                            },
-                            child: Container(
-                              margin: EdgeInsets.only(left: index == 0 ? 0 : 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected ? appAccent : appSurface,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  cat,
-                                  style: GoogleFonts.inter(
-                                    color: isSelected
-                                        ? Colors.black
-                                        : Colors.white,
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.w500,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Consumer<LibraryProvider>(
-                  builder: (context, library, child) {
-                    final isCategorySelected =
-                        library.selectedCategory != 'All';
-                    return Column(
-                      children: [
-                        if (isCategorySelected) ...[
-                          SizedBox(
-                            height: 36,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: library.currentSubfolders.length + 1,
-                              itemBuilder: (context, index) {
-                                if (index == library.currentSubfolders.length) {
-                                  return GestureDetector(
-                                    onTap: () async {
-                                      unawaited(
-                                        HapticFeedback.selectionClick(),
-                                      );
-                                      final auth = context.read<AuthProvider>();
-                                      final name = await _showInputDialog(
-                                        'New Folder Name',
-                                      );
-                                      if (name != null && name.isNotEmpty) {
-                                        await library.addSubfolder(name);
-                                        if (auth.isSignedIn) {
-                                          final json = await library
-                                              .exportStructureToJson();
-                                          unawaited(
-                                            auth.syncService
-                                                .uploadStructureJson(json),
-                                          );
-                                        }
-                                      }
-                                    },
-                                    child: Container(
-                                      margin: const EdgeInsets.only(left: 8),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: appLine),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.create_new_folder_outlined,
-                                            color: appTextMuted,
-                                            size: 16,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Add Folder',
-                                            style: GoogleFonts.inter(
-                                              color: appTextMuted,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }
-
-                                final sub = library.currentSubfolders[index];
-                                final isSelected =
-                                    library.selectedSubfolder == sub.name;
-                                return GestureDetector(
-                                  onTap: () {
-                                    unawaited(HapticFeedback.selectionClick());
-                                    library.setSubfolder(
-                                      isSelected ? null : sub.name,
-                                    );
-                                  },
-                                  child: Container(
-                                    margin: EdgeInsets.only(
-                                      left: index == 0 ? 0 : 8,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? appAccent.withValues(alpha: 0.1)
-                                          : appPaper,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? appAccent
-                                            : Colors.transparent,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          isSelected
-                                              ? Icons.folder
-                                              : Icons.folder_outlined,
-                                          color: isSelected
-                                              ? appAccent
-                                              : appTextMuted,
-                                          size: 16,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          sub.name,
-                                          style: GoogleFonts.inter(
-                                            color: isSelected
-                                                ? appAccent
-                                                : appBackground,
-                                            fontWeight: isSelected
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              isCategorySelected
-                                  ? (library.selectedSubfolder != null
-                                      ? '${library.selectedCategory} / ${library.selectedSubfolder}'
-                                      : library.selectedCategory)
-                                  : 'Recent Scans',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                if (isCategorySelected) ...[
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.document_scanner,
-                                      color: appAccent,
-                                      size: 20,
-                                    ),
-                                    onPressed: _startScan,
-                                    tooltip:
-                                        'Scan to ${library.selectedSubfolder ?? library.selectedCategory}',
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.photo_library,
-                                      color: appAccent,
-                                      size: 20,
-                                    ),
-                                    onPressed: _uploadFromGallery,
-                                    tooltip:
-                                        'Upload to ${library.selectedSubfolder ?? library.selectedCategory}',
-                                  ),
-                                ],
-                                IconButton(
-                                  icon: Icon(
-                                    _viewMode == ViewMode.stack
-                                        ? Icons.view_agenda_rounded
-                                        : _viewMode == ViewMode.grid
-                                            ? Icons.grid_view_rounded
-                                            : Icons.view_list_rounded,
-                                    color: appTextMuted,
-                                  ),
-                                  onPressed: () {
-                                    unawaited(HapticFeedback.lightImpact());
-                                    setState(() {
-                                      if (_viewMode == ViewMode.stack) {
-                                        _viewMode = ViewMode.grid;
-                                      } else if (_viewMode == ViewMode.grid) {
-                                        _viewMode = ViewMode.list;
-                                      } else {
-                                        _viewMode = ViewMode.stack;
-                                      }
-                                    });
-                                  },
-                                ),
-                                if (library.documents.isNotEmpty)
-                                  TextButton(
-                                    onPressed: _toggleSelectionMode,
-                                    style: TextButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Text(
-                                      _isSelectionMode ? 'Cancel' : 'Select',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                        color: appAccent,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: _handleScrollNotification,
-                    child: Consumer<LibraryProvider>(
-                      builder: (context, library, child) {
-                        if (library.isLoading) {
-                          return const Center(
-                            child: CircularProgressIndicator(color: appAccent),
-                          );
-                        }
-                        if (library.documents.isEmpty) {
-                          return Center(
-                            child: Text(
-                              'No documents yet.\nTap the scanner to digitize your first page.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                fontSize: 16,
-                                color: appTextMuted,
-                                height: 1.5,
-                              ),
-                            ),
-                          );
-                        }
-                        if (_viewMode == ViewMode.grid) {
-                          return GridView.builder(
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 0.8,
-                            ),
-                            itemCount: library.documents.length,
-                            itemBuilder: (context, index) {
-                              final doc = library.documents[index];
-                              return DocumentGridCard(
-                                document: doc,
-                                isSelectionMode: _isSelectionMode,
-                                isSelected: _selectedDocs.contains(doc.id),
-                                onTap: () {
-                                  if (_isSelectionMode) {
-                                    _toggleDocumentSelection(doc.id);
-                                  } else {
-                                    unawaited(
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              ExportScreen(document: doc),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                onRename: () {
-                                  if (_isSelectionMode) {
-                                    _toggleDocumentSelection(doc.id);
-                                  } else {
-                                    unawaited(_showRenameDialog(doc));
-                                  }
-                                },
-                                onDelete: () => _handleSingleDelete(doc),
-                                onAutoName: () => _handleAutoName(doc),
-                              );
-                            },
-                          );
-                        }
-
-                        if (_viewMode == ViewMode.list) {
-                          return ListView.separated(
-                            itemCount: library.documents.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final doc = library.documents[index];
-                              return DocumentCard(
-                                document: doc,
-                                isSelectionMode: _isSelectionMode,
-                                isSelected: _selectedDocs.contains(doc.id),
-                                onTap: () {
-                                  if (_isSelectionMode) {
-                                    _toggleDocumentSelection(doc.id);
-                                  } else {
-                                    unawaited(
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              ExportScreen(document: doc),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                onRename: () {
-                                  if (_isSelectionMode) {
-                                    _toggleDocumentSelection(doc.id);
-                                  } else {
-                                    unawaited(_showRenameDialog(doc));
-                                  }
-                                },
-                                onDelete: () => _handleSingleDelete(doc),
-                                onAutoName: () => _handleAutoName(doc),
-                              );
-                            },
-                          );
-                        }
-
-                        return FannedStackLayout(
-                          documents: library.documents,
-                          isSelectionMode: _isSelectionMode,
-                          selectedDocs: _selectedDocs,
-                          onSelect: _toggleDocumentSelection,
-                          onTap: (doc) => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ExportScreen(document: doc),
-                            ),
-                          ),
-                          onRename: _showRenameDialog,
-                          onDelete: (id) {
-                            final doc = library.findById(id);
-                            if (doc != null) {
-                              _handleSingleDelete(doc);
-                            }
-                          },
-                          onAutoName: _handleAutoName,
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ),
-        floatingActionButton: _isSelectionMode && _selectedDocs.isNotEmpty
-            ? FloatingActionButton.extended(
-                onPressed: _deleteSelectedDocuments,
-                backgroundColor: Colors.red,
-                icon: const Icon(Icons.delete, color: Colors.white),
-                label: Text(
-                  'Delete (${_selectedDocs.length})',
-                  style: GoogleFonts.spaceGrotesk(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              )
-            : null,
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-        bottomNavigationBar: !_isSelectionMode
-            ? Consumer<MonetizationProvider>(
-                builder: (context, monetization, child) {
-                  final showAds =
-                      monetization.isAdSupported && !monetization.isPremium;
-
-                  return Column(
+              ),
+              if (!_isSelectionMode)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SafeArea(
-                        bottom: !showAds,
-                        child: AnimatedSlide(
-                          duration: const Duration(milliseconds: 300),
-                          offset:
-                              _isUiVisible ? Offset.zero : const Offset(0, 1.5),
-                          curve: Curves.easeOutCubic,
-                          child: Padding(
-                            padding: const EdgeInsets.only(
-                              left: 24.0,
-                              right: 24.0,
-                              bottom: 24.0,
-                              top: 16.0,
+                      AnimatedSlide(
+                        duration: const Duration(milliseconds: 260),
+                        offset:
+                            _isUiVisible ? Offset.zero : const Offset(0, 1.5),
+                        curve: Curves.easeOutCubic,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                appBackground.withValues(alpha: 0.0),
+                                appBackground.withValues(alpha: 0.85),
+                              ],
                             ),
-                            child: ScanButton(
-                              onPressed: _isScanning ? null : _startScan,
-                            ),
+                          ),
+                          padding: EdgeInsets.fromLTRB(
+                            layout.horizontalPadding,
+                            12,
+                            layout.horizontalPadding,
+                            showAds ? 8 : layout.viewPadding.bottom + 12,
+                          ),
+                          child: ScanButton(
+                            onPressed: _isScanning ? null : _startScan,
                           ),
                         ),
                       ),
                       if (showAds)
                         SafeArea(
+                          top: false,
                           child: _isBannerAdLoaded && _bannerAd != null
                               ? Container(
                                   color: appBackground,
@@ -1365,10 +1429,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                         ),
                     ],
-                  );
-                },
+                  ),
+                ),
+            ],
+          ),
+        ),
+        floatingActionButton: _isSelectionMode && _selectedDocs.isNotEmpty
+            ? FloatingActionButton.extended(
+                onPressed: _deleteSelectedDocuments,
+                backgroundColor: Colors.red,
+                icon: const Icon(Icons.delete, color: Colors.white),
+                label: Text(
+                  'Delete (${_selectedDocs.length})',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               )
             : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       ),
     );
   }

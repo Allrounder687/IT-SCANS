@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../core/responsive.dart';
 import '../../core/theme.dart';
 import '../../providers/monetization_provider.dart';
 
@@ -10,6 +11,7 @@ class PaywallScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
     return Scaffold(
       backgroundColor: appBackground,
       body: SafeArea(
@@ -18,39 +20,48 @@ class PaywallScreen extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 24),
-                const Icon(
+                SizedBox(height: layout.isCompactHeight ? 14 : 24),
+                Icon(
                   Icons.workspace_premium_rounded,
-                  size: 48,
+                  size: layout.isCompactHeight ? 40 : 48,
                   color: appAccent,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'Free Limit Reached',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                SizedBox(height: layout.isCompactHeight ? 10 : 16),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: layout.horizontalPadding,
+                  ),
+                  child: Text(
+                    'Free Limit Reached',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: layout.isNarrow ? 24 : 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: layout.tightGap),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: layout.horizontalPadding,
+                  ),
                   child: Text(
                     'We are so sorry you have to see this! 🙈\nBut updating and keeping this app alive with new features is time consuming. The money is only needed to support the dev and his team to keep your favorite app alive.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: appTextMuted,
                       height: 1.4,
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: layout.sectionGap),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: layout.horizontalPadding,
+                    ),
                     child: Column(
                       children: [
                         _buildChoiceCard(
@@ -109,33 +120,42 @@ class PaywallScreen extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                  padding: EdgeInsets.fromLTRB(
+                    layout.horizontalPadding,
+                    4,
+                    layout.horizontalPadding,
+                    12,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      TextButton(
-                        onPressed: () {
-                          _showPromoDialog(context, monetization);
-                        },
-                        child: Text(
-                          'Promo Code',
-                          style: GoogleFonts.inter(
-                            color: appTextMuted,
-                            fontSize: 14,
+                      Flexible(
+                        child: TextButton(
+                          onPressed: () {
+                            _showPromoDialog(context, monetization);
+                          },
+                          child: Text(
+                            'Promo Code',
+                            style: GoogleFonts.inter(
+                              color: appTextMuted,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          if (Navigator.canPop(context)) {
-                            Navigator.pop(context);
-                          }
-                        },
-                        child: Text(
-                          'Maybe later',
-                          style: GoogleFonts.inter(
-                            color: appTextMuted,
-                            fontSize: 14,
+                      Flexible(
+                        child: TextButton(
+                          onPressed: () {
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: Text(
+                            'Maybe later',
+                            style: GoogleFonts.inter(
+                              color: appTextMuted,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ),
@@ -255,7 +275,7 @@ class PaywallScreen extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(16),
@@ -269,9 +289,9 @@ class PaywallScreen extends StatelessWidget {
                 color: borderColor.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: textColor, size: 24),
+              child: Icon(icon, color: textColor, size: 22),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -279,7 +299,7 @@ class PaywallScreen extends StatelessWidget {
                   Text(
                     title,
                     style: GoogleFonts.spaceGrotesk(
-                      fontSize: 18,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                       color: textColor,
                     ),
@@ -297,10 +317,11 @@ class PaywallScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             Text(
               price,
               style: GoogleFonts.jetBrainsMono(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
                 color: textColor,
               ),

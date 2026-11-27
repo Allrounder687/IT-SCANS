@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/responsive.dart';
 import '../core/theme.dart';
 import '../models/scan_document.dart';
 import 'app_pdf_viewer.dart';
@@ -32,10 +33,11 @@ class DocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
     final isPdf = document.filePath.toLowerCase().endsWith('.pdf');
     final thumbnail = Container(
-      width: 48,
-      height: 64,
+      width: layout.thumbWidth,
+      height: layout.thumbHeight,
       decoration: BoxDecoration(
         color: isSelected ? appAccent : appPaper,
         borderRadius: BorderRadius.circular(4),
@@ -61,12 +63,12 @@ class DocumentCard extends StatelessWidget {
           isSelectionMode ? DismissDirection.none : DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 24),
+        padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
           color: Colors.red.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.delete_sweep, color: Colors.white, size: 32),
+        child: const Icon(Icons.delete_sweep, color: Colors.white, size: 28),
       ),
       onDismissed: (_) => onDelete(),
       child: InkWell(
@@ -84,55 +86,72 @@ class DocumentCard extends StatelessWidget {
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              builder: (context) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      leading:
-                          const Icon(Icons.share, color: Colors.blueAccent),
-                      title: Text(
-                        'Open / Share',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 16,
+              builder: (context) => SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        leading:
+                            const Icon(Icons.share, color: Colors.blueAccent),
+                        title: Text(
+                          'Open / Share',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                         ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          onTap();
+                        },
                       ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        onTap();
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.edit, color: Colors.white),
-                      title: Text(
-                        'Rename',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 16,
+                      ListTile(
+                        leading: const Icon(Icons.edit, color: Colors.white),
+                        title: Text(
+                          'Rename',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                         ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          onRename();
+                        },
                       ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        onRename();
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.delete, color: Colors.red),
-                      title: Text(
-                        'Delete',
-                        style: GoogleFonts.inter(
-                          color: Colors.red,
-                          fontSize: 16,
+                      ListTile(
+                        leading:
+                            const Icon(Icons.auto_awesome, color: appAccent),
+                        title: Text(
+                          'Auto-Name (AI)',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                         ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          onAutoName();
+                        },
                       ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        onDelete();
-                      },
-                    ),
-                  ],
+                      ListTile(
+                        leading: const Icon(Icons.delete, color: Colors.red),
+                        title: Text(
+                          'Delete',
+                          style: GoogleFonts.inter(
+                            color: Colors.red,
+                            fontSize: 16,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          onDelete();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -140,7 +159,7 @@ class DocumentCard extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(layout.cardPadding),
           decoration: BoxDecoration(
             color: isSelected ? appAccent.withValues(alpha: 0.1) : appSurface,
             borderRadius: BorderRadius.circular(12),
@@ -151,15 +170,16 @@ class DocumentCard extends StatelessWidget {
               isPdf
                   ? thumbnail
                   : Hero(tag: 'card_${document.id}', child: thumbnail),
-              const SizedBox(width: 16),
+              SizedBox(width: layout.isNarrow ? 10 : 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       document.name,
                       style: GoogleFonts.spaceGrotesk(
-                        fontSize: 16,
+                        fontSize: layout.isNarrow ? 14 : 15,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
@@ -177,17 +197,17 @@ class DocumentCard extends StatelessWidget {
                               _getFileSize(document.filePath),
                             ],
                             style: GoogleFonts.jetBrainsMono(
-                              fontSize: 12,
+                              fontSize: layout.isNarrow ? 11 : 12,
                               color: appTextMuted,
                             ),
                           ),
                         ),
                         if (document.isSynced) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           const Icon(
                             Icons.cloud_done,
                             color: appAccent,
-                            size: 16,
+                            size: 15,
                           ),
                         ],
                       ],
@@ -198,6 +218,9 @@ class DocumentCard extends StatelessWidget {
               if (!isSelectionMode)
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_horiz, color: appTextMuted),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
                   color: appSurface,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -220,10 +243,29 @@ class DocumentCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    PopupMenuItem(
+                      value: 'autoname',
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.auto_awesome,
+                            size: 18,
+                            color: appAccent,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Auto-Name',
+                            style: GoogleFonts.inter(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                   onSelected: (value) {
                     if (value == 'move') {
                       unawaited(showMoveDocumentDialog(context, document));
+                    } else if (value == 'autoname') {
+                      onAutoName();
                     }
                   },
                 )

@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart' as pdfx;
+import '../core/theme.dart';
 
 class AppPdfViewer extends StatefulWidget {
   final String filePath;
@@ -28,6 +30,8 @@ class _AppPdfViewerState extends State<AppPdfViewer> {
   pdfx.PdfController? _pdfController;
   File? _cachedThumbnailFile;
   bool _loadingThumbnail = false;
+  int _currentPage = 1;
+  int _totalPages = 0;
 
   bool get _isDesktop =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -35,6 +39,10 @@ class _AppPdfViewerState extends State<AppPdfViewer> {
   @override
   void initState() {
     super.initState();
+    _initViewer();
+  }
+
+  void _initViewer() {
     if (widget.isThumbnail) {
       unawaited(_loadOrGenerateThumbnail());
     } else if (_isDesktop) {
@@ -52,13 +60,9 @@ class _AppPdfViewerState extends State<AppPdfViewer> {
       _pdfController?.dispose();
       _pdfController = null;
       _cachedThumbnailFile = null;
-      if (widget.isThumbnail) {
-        unawaited(_loadOrGenerateThumbnail());
-      } else if (_isDesktop) {
-        _pdfController = pdfx.PdfController(
-          document: pdfx.PdfDocument.openFile(widget.filePath),
-        );
-      }
+      _currentPage = 1;
+      _totalPages = 0;
+      _initViewer();
     }
   }
 
@@ -67,17 +71,25 @@ class _AppPdfViewerState extends State<AppPdfViewer> {
     setState(() => _loadingThumbnail = true);
 
     try {
+      final sourceFile = File(widget.filePath);
+      if (!await sourceFile.exists()) {
+        if (mounted) setState(() => _loadingThumbnail = false);
+        return;
+      }
+
+      final stat = await sourceFile.stat();
       final cacheDir = await getTemporaryDirectory();
       final thumbsDir = Directory(p.join(cacheDir.path, 'pdf_thumbs'));
       if (!await thumbsDir.exists()) {
         await thumbsDir.create(recursive: true);
       }
 
-      final cacheKey =
-          widget.filePath.hashCode.toUnsigned(32).toRadixString(16);
+      final rawKey =
+          '${widget.filePath}_${stat.modified.millisecondsSinceEpoch}_${stat.size}';
+      final cacheKey = rawKey.hashCode.toUnsigned(32).toRadixString(16);
       final thumbFile = File(p.join(thumbsDir.path, 'thumb_$cacheKey.jpg'));
 
-      if (await thumbFile.exists() && await thumbFile.length() > 0) {
+      if (await thumbFile.exists() && await thumbFile.length() > 100) {
         if (mounted) {
           setState(() {
             _cachedThumbnailFile = thumbFile;
@@ -89,7 +101,9 @@ class _AppPdfViewerState extends State<AppPdfViewer> {
 
       await _enqueueThumbnailRender(widget.filePath, thumbFile);
 
-      if (mounted && await thumbFile.exists()) {
+      if (mounted &&
+          await thumbFile.exists() &&
+          await thumbFile.length() > 100) {
         setState(() {
           _cachedThumbnailFile = thumbFile;
         });
@@ -116,7 +130,7 @@ class _AppPdfViewerState extends State<AppPdfViewer> {
           completer.complete();
           return;
         }
-        if (await destFile.exists() && await destFile.length() > 0) {
+        if (await destFile.exists() && await destFile.length() > 100) {
           completer.complete();
           return;
         }
@@ -131,8 +145,9 @@ class _AppPdfViewerState extends State<AppPdfViewer> {
           width: page.width * scale,
           height: page.height * scale,
           format: pdfx.PdfPageImageFormat.jpeg,
+          backgroundColor: '#FFFFFF',
         );
-        if (pageImage != null) {
+        if (pageImage != null && pageImage.bytes.isNotEmpty) {
           await destFile.writeAsBytes(pageImage.bytes);
         }
       } catch (e) {
@@ -161,14 +176,14 @@ class _AppPdfViewerState extends State<AppPdfViewer> {
       if (_loadingThumbnail) {
         return const Center(
           child: SizedBox(
-            width: 18,
-            height: 18,
+            width: 16,
+            height: 16,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
         );
       }
       return const Center(
-        child: Icon(Icons.picture_as_pdf, color: Colors.blueAccent, size: 28),
+        child: Icon(Icons.picture_as_pdf, color: Colors.blueAccent, size: 24),
       );
     }
 
@@ -176,30 +191,89 @@ class _AppPdfViewerState extends State<AppPdfViewer> {
       if (_pdfController == null) {
         return const Center(child: CircularProgressIndicator());
       }
-      return pdfx.PdfView(
-        controller: _pdfController!,
-        scrollDirection: Axis.vertical,
-        builders: pdfx.PdfViewBuilders<pdfx.DefaultBuilderOptions>(
-          options: const pdfx.DefaultBuilderOptions(),
-          documentLoaderBuilder: (_) =>
-              const Center(child: CircularProgressIndicator()),
-          pageLoaderBuilder: (_) =>
-              const Center(child: CircularProgressIndicator()),
-          errorBuilder: (_, error) => Center(child: Text(error.toString())),
-        ),
+      return Stack(
+        children: [
+          pdfx.PdfView(
+            controller: _pdfController!,
+            scrollDirection: Axis.horizontal,
+            pageSnapping: true,
+            onDocumentLoaded: (doc) {
+              if (mounted) {
+                setState(() => _totalPages = doc.pagesCount);
+              }
+            },
+            onPageChanged: (page) {
+              if (mounted) {
+                setState(() => _currentPage = page);
+              }
+            },
+            builders: pdfx.PdfViewBuilders<pdfx.DefaultBuilderOptions>(
+              options: const pdfx.DefaultBuilderOptions(),
+              documentLoaderBuilder: (_) =>
+                  const Center(child: CircularProgressIndicator()),
+              pageLoaderBuilder: (_) =>
+                  const Center(child: CircularProgressIndicator()),
+              errorBuilder: (_, error) => Center(child: Text(error.toString())),
+            ),
+          ),
+          if (_totalPages > 1) _buildPageBadge(),
+        ],
       );
     }
 
-    return PDFView(
-      filePath: widget.filePath,
-      enableSwipe: true,
-      swipeHorizontal: false,
-      autoSpacing: true,
-      pageFling: true,
-      pageSnap: true,
-      defaultPage: 0,
-      fitPolicy: FitPolicy.BOTH,
-      backgroundColor: Colors.white,
+    return Stack(
+      children: [
+        PDFView(
+          filePath: widget.filePath,
+          enableSwipe: true,
+          swipeHorizontal: true,
+          autoSpacing: true,
+          pageFling: true,
+          pageSnap: true,
+          defaultPage: 0,
+          fitPolicy: FitPolicy.BOTH,
+          backgroundColor: Colors.white,
+          onRender: (pages) {
+            if (mounted && pages != null) {
+              setState(() => _totalPages = pages);
+            }
+          },
+          onPageChanged: (page, total) {
+            if (mounted && page != null) {
+              setState(() {
+                _currentPage = page + 1;
+                if (total != null) _totalPages = total;
+              });
+            }
+          },
+        ),
+        if (_totalPages > 1) _buildPageBadge(),
+      ],
+    );
+  }
+
+  Widget _buildPageBadge() {
+    return Positioned(
+      bottom: 8,
+      right: 8,
+      child: IgnorePointer(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: appBackground.withValues(alpha: 0.78),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: appLine),
+          ),
+          child: Text(
+            '$_currentPage / $_totalPages',
+            style: GoogleFonts.jetBrainsMono(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

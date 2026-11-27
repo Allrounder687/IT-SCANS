@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../core/theme.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/responsive.dart';
+import '../core/theme.dart';
 
 class ScanButton extends StatelessWidget {
   final VoidCallback? onPressed;
@@ -9,30 +10,49 @@ class ScanButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
+    final layout = AppLayout.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: appAccent,
           foregroundColor: Colors.black,
-          minimumSize: const Size(double.infinity, 64),
+          minimumSize: Size(double.infinity, layout.scanButtonHeight),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
           elevation: 0,
         ),
         onPressed: onPressed,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.document_scanner_rounded, size: 28),
-            const SizedBox(width: 12),
-            Text(
-              'Scan document',
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+            Icon(
+              Icons.document_scanner_rounded,
+              size: layout.isCompactHeight ? 22 : 24,
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'Scan document',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: layout.isCompactHeight ? 17 : 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
               ),
             ),
           ],

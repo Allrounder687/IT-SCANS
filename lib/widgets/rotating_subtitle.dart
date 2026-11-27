@@ -22,20 +22,22 @@ class _RotatingSubtitleState extends State<RotatingSubtitle> {
   @override
   void initState() {
     super.initState();
-    // Slightly offset the initial timer so all cards don't animate at the exact same millisecond
+    // Slightly offset initial start so all cards don't flip at the exact same ms.
     final delay = (hashCode % 1000) + 2000;
 
-    Future.delayed(Duration(milliseconds: delay), () {
-      if (mounted) {
-        _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-          if (mounted) {
-            setState(() {
-              _currentIndex = (_currentIndex + 1) % widget.texts.length;
-            });
-          }
-        });
-      }
-    });
+    unawaited(
+      Future<void>.delayed(Duration(milliseconds: delay), () {
+        if (mounted && widget.texts.length > 1) {
+          _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+            if (mounted) {
+              setState(() {
+                _currentIndex = (_currentIndex + 1) % widget.texts.length;
+              });
+            }
+          });
+        }
+      }),
+    );
   }
 
   @override
@@ -46,28 +48,40 @@ class _RotatingSubtitleState extends State<RotatingSubtitle> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 600),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (Widget child, Animation<double> animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.0, 0.4),
-              end: Offset.zero,
-            ).animate(animation),
+    final text = widget.texts[_currentIndex % widget.texts.length];
+
+    return ClipRect(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        layoutBuilder: (currentChild, previousChildren) {
+          return Stack(
+            alignment: AlignmentDirectional.centerStart,
+            children: [
+              // Only render the incoming child inside the stack so outgoing text
+              // never overlaps the active line on narrow screens.
+              if (currentChild != null) currentChild,
+            ],
+          );
+        },
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
             child: child,
+          );
+        },
+        child: SizedBox(
+          key: ValueKey<String>(text),
+          width: double.infinity,
+          child: Text(
+            text,
+            style: widget.style,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.start,
           ),
-        );
-      },
-      child: Text(
-        widget.texts[_currentIndex],
-        key: ValueKey<String>(widget.texts[_currentIndex]),
-        style: widget.style,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

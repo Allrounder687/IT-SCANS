@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/responsive.dart';
 import '../../core/theme.dart';
 import '../../models/scan_document.dart';
 import '../../providers/auth_provider.dart';
@@ -65,83 +66,86 @@ class ExportScreen extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Recent Contacts',
-                style: GoogleFonts.spaceGrotesk(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (recentContacts.isEmpty)
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'No recent contacts yet.',
-                  style: GoogleFonts.inter(color: appTextMuted),
+                  'Recent Contacts',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              if (recentContacts.isNotEmpty)
+                const SizedBox(height: 16),
+                if (recentContacts.isEmpty)
+                  Text(
+                    'No recent contacts yet.',
+                    style: GoogleFonts.inter(color: appTextMuted),
+                  ),
+                if (recentContacts.isNotEmpty)
+                  SizedBox(
+                    height: 80,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: recentContacts.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 16),
+                      itemBuilder: (context, index) {
+                        final contact = recentContacts[index];
+                        return GestureDetector(
+                          onTap: () => Navigator.pop(context, contact),
+                          child: Column(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor:
+                                    appAccent.withValues(alpha: 0.2),
+                                child: Text(
+                                  contact[0].toUpperCase(),
+                                  style: const TextStyle(color: appAccent),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                contact.length > 10
+                                    ? '${contact.substring(0, 8)}...'
+                                    : contact,
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 20),
                 SizedBox(
-                  height: 80,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: recentContacts.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(width: 16),
-                    itemBuilder: (context, index) {
-                      final contact = recentContacts[index];
-                      return GestureDetector(
-                        onTap: () => Navigator.pop(context, contact),
-                        child: Column(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: appAccent.withValues(alpha: 0.2),
-                              child: Text(
-                                contact[0].toUpperCase(),
-                                style: const TextStyle(color: appAccent),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              contact.length > 10
-                                  ? '${contact.substring(0, 8)}...'
-                                  : contact,
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context, 'NEW_CONTACT'),
-                  icon: const Icon(Icons.person_add, color: appAccent),
-                  label: Text(
-                    'Send to New Contact',
-                    style: GoogleFonts.spaceGrotesk(color: Colors.white),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: appLine),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context, 'NEW_CONTACT'),
+                    icon: const Icon(Icons.person_add, color: appAccent),
+                    label: Text(
+                      'Send to New Contact',
+                      style: GoogleFonts.spaceGrotesk(color: Colors.white),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: appLine),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -251,9 +255,11 @@ class ExportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
     final liveDoc = context.select<LibraryProvider, ScanDocument>(
       (library) => library.findById(document.id) ?? document,
     );
+    final isPdf = liveDoc.filePath.toLowerCase().endsWith('.pdf');
 
     return Scaffold(
       appBar: AppBar(
@@ -264,29 +270,30 @@ class ExportScreen extends StatelessWidget {
           children: [
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(32.0),
+                padding: EdgeInsets.symmetric(
+                  horizontal: layout.horizontalPadding,
+                  vertical: layout.tightGap,
+                ),
                 child: Builder(
                   builder: (context) {
-                    final isPdf =
-                        liveDoc.filePath.toLowerCase().endsWith('.pdf');
                     final container = Container(
                       decoration: BoxDecoration(
                         color: appPaper,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
+                            color: Colors.black.withValues(alpha: 0.45),
+                            blurRadius: 16,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         child: isPdf
                             ? Container(
                                 color: Colors.white,
-                                padding: const EdgeInsets.all(16.0),
+                                padding: const EdgeInsets.all(6.0),
                                 child: AppPdfViewer(
                                   filePath: liveDoc.filePath,
                                   isThumbnail: false,
@@ -294,13 +301,11 @@ class ExportScreen extends StatelessWidget {
                               )
                             : Image.file(
                                 File(liveDoc.filePath),
-                                fit: BoxFit.cover,
+                                fit: BoxFit.contain,
                               ),
                       ),
                     );
 
-                    // Avoid Hero transitions on heavy PDF PlatformViews to
-                    // prevent Android SurfaceView flicker/crashes.
                     if (!isPdf) {
                       return Hero(
                         tag: 'card_${liveDoc.id}',
@@ -312,129 +317,184 @@ class ExportScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.all(24.0),
-              decoration: const BoxDecoration(
-                color: appSurface,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: layout.height * 0.44,
               ),
-              child: Column(
-                children: [
-                  Text(
-                    liveDoc.name,
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${liveDoc.pageCount} page(s)',
-                    style: GoogleFonts.jetBrainsMono(
-                      color: appTextMuted,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Row(
+              child: Container(
+                padding: EdgeInsets.fromLTRB(
+                  layout.horizontalPadding,
+                  layout.isCompactHeight ? 14 : 18,
+                  layout.horizontalPadding,
+                  layout.isCompactHeight ? 12 : 16,
+                ),
+                decoration: const BoxDecoration(
+                  color: appSurface,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _shareDocument(liveDoc),
-                          icon: const Icon(
-                            Icons.share,
-                            color: Colors.blueAccent,
-                          ),
-                          label: Text(
-                            'Social Media',
-                            style: GoogleFonts.spaceGrotesk(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            side: const BorderSide(color: appLine),
-                            backgroundColor:
-                                Colors.blueAccent.withValues(alpha: 0.15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                      Text(
+                        liveDoc.name,
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: layout.exportTitleFontSize,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${liveDoc.pageCount} page(s)${isPdf && liveDoc.pageCount > 1 ? ' • swipe left/right' : ''}',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: appTextMuted,
+                          fontSize: 12,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _savePdf(context, liveDoc),
-                          icon: const Icon(
-                            Icons.picture_as_pdf,
-                            color: Colors.black,
-                          ),
-                          label: Text(
-                            'Save PDF',
-                            style: GoogleFonts.spaceGrotesk(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
+                      SizedBox(height: layout.isCompactHeight ? 14 : 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _shareDocument(liveDoc),
+                              icon: const Icon(
+                                Icons.share,
+                                color: Colors.blueAccent,
+                                size: 19,
+                              ),
+                              label: Text(
+                                'Share',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.spaceGrotesk(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 13),
+                                side: const BorderSide(color: appLine),
+                                backgroundColor:
+                                    Colors.blueAccent.withValues(alpha: 0.15),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: appAccent,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _savePdf(context, liveDoc),
+                              icon: const Icon(
+                                Icons.picture_as_pdf,
+                                color: Colors.black,
+                                size: 19,
+                              ),
+                              label: Text(
+                                'Save PDF',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.spaceGrotesk(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: appAccent,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 13),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Consumer<AuthProvider>(
-                    builder: (context, auth, child) {
-                      if (!auth.isSignedIn) return const SizedBox.shrink();
+                      Consumer<AuthProvider>(
+                        builder: (context, auth, child) {
+                          if (!auth.isSignedIn) return const SizedBox.shrink();
 
-                      return SizedBox(
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final driveId = await auth.syncService
+                                      .uploadDocument(liveDoc);
+                                  if (context.mounted) {
+                                    if (driveId != null) {
+                                      unawaited(
+                                        context
+                                            .read<LibraryProvider>()
+                                            .updateSyncStatus(
+                                              liveDoc.id,
+                                              true,
+                                              driveId: driveId,
+                                            ),
+                                      );
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          driveId != null
+                                              ? 'Backed up to Google Drive!'
+                                              : 'Failed to backup to Drive',
+                                          style: GoogleFonts.inter(),
+                                        ),
+                                        backgroundColor: driveId != null
+                                            ? Colors.green
+                                            : Colors.red,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(
+                                  Icons.cloud_upload,
+                                  color: appAccent,
+                                  size: 19,
+                                ),
+                                label: Text(
+                                  'Backup to Drive',
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(color: appLine),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final driveId =
-                                await auth.syncService.uploadDocument(liveDoc);
-                            if (context.mounted) {
-                              if (driveId != null) {
-                                unawaited(
-                                  context
-                                      .read<LibraryProvider>()
-                                      .updateSyncStatus(
-                                        liveDoc.id,
-                                        true,
-                                        driveId: driveId,
-                                      ),
-                                );
-                              }
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    driveId != null
-                                        ? 'Backed up to Google Drive!'
-                                        : 'Failed to backup to Drive',
-                                    style: GoogleFonts.inter(),
-                                  ),
-                                  backgroundColor: driveId != null
-                                      ? Colors.green
-                                      : Colors.red,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
-                          icon:
-                              const Icon(Icons.cloud_upload, color: appAccent),
+                          onPressed: () => _sendToUser(context, liveDoc),
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: Colors.blueAccent,
+                            size: 19,
+                          ),
                           label: Text(
-                            'Backup to Drive',
+                            'Direct Send to User',
                             style: GoogleFonts.spaceGrotesk(
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -443,42 +503,16 @@ class ExportScreen extends StatelessWidget {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
                             side: const BorderSide(color: appLine),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _sendToUser(context, liveDoc),
-                      icon: const Icon(
-                        Icons.send_rounded,
-                        color: Colors.blueAccent,
-                      ),
-                      label: Text(
-                        'Direct Send to User',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: appLine),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ],

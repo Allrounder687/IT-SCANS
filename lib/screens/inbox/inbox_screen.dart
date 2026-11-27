@@ -8,6 +8,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/responsive.dart';
 import '../../core/theme.dart';
 import '../../services/firebase_share_service.dart';
 
@@ -81,6 +82,7 @@ class _InboxScreenState extends State<InboxScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
     return Scaffold(
       backgroundColor: appBackground,
       appBar: AppBar(
@@ -141,7 +143,10 @@ class _InboxScreenState extends State<InboxScreen> {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(
+              horizontal: layout.horizontalPadding,
+              vertical: layout.sectionGap,
+            ),
             itemCount: messages.length,
             separatorBuilder: (context, index) => const Divider(color: appLine),
             itemBuilder: (context, index) {
@@ -165,6 +170,8 @@ class _InboxScreenState extends State<InboxScreen> {
                     color: Colors.white,
                     fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,6 +181,8 @@ class _InboxScreenState extends State<InboxScreen> {
                       'From: ${message['senderEmail']}',
                       style:
                           GoogleFonts.inter(color: appTextMuted, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(

@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/responsive.dart';
 import '../../core/theme.dart';
 import '../../providers/accessibility_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -19,6 +20,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
     return Scaffold(
       backgroundColor: appBackground,
       appBar: AppBar(
@@ -31,7 +33,7 @@ class SettingsScreen extends StatelessWidget {
         title: Text(
           'Settings',
           style: GoogleFonts.spaceGrotesk(
-            fontSize: 24,
+            fontSize: 22,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -40,16 +42,19 @@ class SettingsScreen extends StatelessWidget {
       body: Consumer2<AuthProvider, LibraryProvider>(
         builder: (context, auth, library, child) {
           return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            padding: EdgeInsets.symmetric(
+              horizontal: layout.horizontalPadding,
+              vertical: layout.sectionGap,
+            ),
             children: [
               _buildStorageCard(context, library),
-              const SizedBox(height: 16),
+              SizedBox(height: layout.sectionGap),
               _buildAppearanceCard(context),
-              const SizedBox(height: 16),
+              SizedBox(height: layout.sectionGap),
               _buildAccountCard(context, auth),
-              const SizedBox(height: 16),
+              SizedBox(height: layout.sectionGap),
               const _SecurityCard(),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               _buildAboutSection(context),
             ],
           );
@@ -93,6 +98,8 @@ class SettingsScreen extends StatelessWidget {
           subtitle: Text(
             library.customSaveLocation ?? 'Default App Storage',
             style: GoogleFonts.inter(color: appTextMuted, fontSize: 13),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           trailing: TextButton(
             onPressed: () async {
@@ -210,10 +217,14 @@ class SettingsScreen extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
               auth.currentUser?.email ?? '',
               style: GoogleFonts.inter(color: appTextMuted, fontSize: 13),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             trailing: IconButton(
               icon: const Icon(Icons.logout, color: Colors.redAccent),
@@ -623,34 +634,38 @@ class _SecurityCardState extends State<_SecurityCard> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    SegmentedButton<int>(
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.resolveWith(
-                          (states) => states.contains(WidgetState.selected)
-                              ? appAccent
-                              : appBackground,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: SegmentedButton<int>(
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStateProperty.resolveWith(
+                            (states) => states.contains(WidgetState.selected)
+                                ? appAccent
+                                : appBackground,
+                          ),
+                          foregroundColor: WidgetStateProperty.resolveWith(
+                            (states) => states.contains(WidgetState.selected)
+                                ? Colors.black
+                                : Colors.white,
+                          ),
+                          side: const WidgetStatePropertyAll(
+                            BorderSide(color: appLine),
+                          ),
                         ),
-                        foregroundColor: WidgetStateProperty.resolveWith(
-                          (states) => states.contains(WidgetState.selected)
-                              ? Colors.black
-                              : Colors.white,
-                        ),
-                        side: const WidgetStatePropertyAll(
-                          BorderSide(color: appLine),
-                        ),
+                        segments: const [
+                          ButtonSegment<int>(
+                            value: 0,
+                            label: Text('Immediately'),
+                          ),
+                          ButtonSegment<int>(value: 60, label: Text('1 Min')),
+                          ButtonSegment<int>(value: 300, label: Text('5 Min')),
+                        ],
+                        selected: {_delaySeconds},
+                        onSelectionChanged: (Set<int> newSelection) {
+                          unawaited(_setDelay(newSelection.first));
+                        },
                       ),
-                      segments: const [
-                        ButtonSegment<int>(
-                          value: 0,
-                          label: Text('Immediately'),
-                        ),
-                        ButtonSegment<int>(value: 60, label: Text('1 Min')),
-                        ButtonSegment<int>(value: 300, label: Text('5 Min')),
-                      ],
-                      selected: {_delaySeconds},
-                      onSelectionChanged: (Set<int> newSelection) {
-                        unawaited(_setDelay(newSelection.first));
-                      },
                     ),
                   ],
                 ),

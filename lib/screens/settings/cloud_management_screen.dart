@@ -2,10 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../core/responsive.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/cloud_sync_service.dart';
-import 'package:provider/provider.dart';
 
 class CloudManagementScreen extends StatefulWidget {
   const CloudManagementScreen({super.key});
@@ -77,6 +78,7 @@ class _CloudManagementScreenState extends State<CloudManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppLayout.of(context);
     return Scaffold(
       backgroundColor: appBackground,
       appBar: AppBar(
@@ -105,7 +107,10 @@ class _CloudManagementScreenState extends State<CloudManagementScreen> {
                   ),
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: layout.horizontalPadding,
+                    vertical: layout.sectionGap,
+                  ),
                   itemCount: _files.length,
                   separatorBuilder: (context, index) =>
                       const Divider(color: appLine),
@@ -138,6 +143,8 @@ class _CloudManagementScreenState extends State<CloudManagementScreen> {
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Text(
                         subtitleText,
