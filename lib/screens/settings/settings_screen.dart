@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/responsive.dart';
 import '../../core/theme.dart';
 import '../../providers/accessibility_provider.dart';
@@ -515,6 +516,28 @@ class _AboutSectionState extends State<_AboutSection> {
               ),
             ),
           ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: () {
+            unawaited(
+              launchUrl(
+                Uri.parse(
+                  'https://allrounder687.github.io/IT-SCANS/privacy-policy/',
+                ),
+                mode: LaunchMode.externalApplication,
+              ),
+            );
+          },
+          icon: const Icon(
+            Icons.privacy_tip_outlined,
+            color: appTextMuted,
+            size: 16,
+          ),
+          label: Text(
+            'Privacy Policy',
+            style: GoogleFonts.inter(color: appTextMuted, fontSize: 13),
+          ),
+        ),
       ],
     );
   }
