@@ -1,0 +1,14 @@
+Turn your phone into a fast, private, studio-grade document scanner.
+
+IT SCANS captures crisp multi-page PDFs in seconds with automatic edge detection, perspective correction, and 100% on-device AI OCR that names and organizes your files automatically — no typing, no account required.
+
+KEY FEATURES
+• Batch Scan Up to 100 Pages: Scan contracts, notes, receipts, invoices, and IDs in one smooth session with instant edge detection.
+• 100% Offline AI OCR & Auto-Naming: On-device text recognition reads your scan and automatically suggests smart titles and categories (Receipts, Invoices, IDs, Taxes).
+• Horizontal PDF Swipe Reader: Flip through multi-page documents smoothly, inspect every page, and export in one tap.
+• 1-Tap Save, Share & Backup: Save crisp PDFs directly to your device, share anywhere, or back up automatically to your own Google Drive with smart deduplication.
+• Biometric App Lock: Protect sensitive documents with Fingerprint or Face Unlock and configurable auto-lock delays.
+• 400 Free Scans Included: Start scanning immediately with zero sign-up barriers.
+
+PRIVACY FIRST
+Your documents stay on your device. OCR text recognition runs locally offline, and cloud sync goes only to your personal Google Drive if you choose to connect it.

@@ -1,7 +1,7 @@
 name: itscans
 description: "A CamScanner-style document scanner (zero-cognitive-load design)."
 publish_to: "none"
-version: 1.0.6+6
+version: 1.0.7+7
 
 environment:
   sdk: ">=3.3.0 <4.0.0"

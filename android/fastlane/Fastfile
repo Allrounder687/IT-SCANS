@@ -1,15 +1,37 @@
 default_platform(:android)
 
 platform :android do
-  desc "Submit a new Beta Build to Crashlytics Beta"
-  lane :beta do
-    gradle(task: "clean assembleRelease")
-    # upload_to_play_store(track: 'beta') # Uncomment when keys are ready
+  desc "Build release AAB and upload to Internal testing"
+  lane :internal do
+    gradle(task: "clean bundleRelease")
+    upload_to_play_store(
+      track: "internal",
+      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      skip_upload_apk: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
   end
 
-  desc "Deploy a new version to the Google Play"
-  lane :deploy do
-    gradle(task: "clean bundleRelease")
-    # upload_to_play_store # Uncomment when keys are ready
+  desc "Upload prebuilt release AAB to a Play Console track (internal, alpha, production)"
+  lane :deploy_track do |options|
+    track = options[:track] || "internal"
+    upload_to_play_store(
+      track: track,
+      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      skip_upload_apk: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Sync Play Store listing metadata only (title, descriptions, changelogs)"
+  lane :sync_metadata do
+    upload_to_play_store(
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
   end
 end

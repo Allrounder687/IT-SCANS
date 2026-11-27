@@ -1,0 +1,1 @@
+Fast, private document scanner with OCR auto-naming, PDF export & Drive sync.

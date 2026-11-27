@@ -1,0 +1,4 @@
+v1.0.7+7:
+• Added in-app Privacy Policy link in Settings
+• Removed unused media/install permissions for stricter Play Store privacy
+• Stability and PDF export improvements
