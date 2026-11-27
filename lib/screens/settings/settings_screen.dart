@@ -311,7 +311,32 @@ class SettingsScreen extends StatelessWidget {
               'Tap to sign in and backup scans',
               style: GoogleFonts.inter(color: appTextMuted, fontSize: 13),
             ),
-            onTap: () => BiometricWrapper.runWithAuthBypass(auth.signIn),
+            trailing: auth.isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: appAccent,
+                    ),
+                  )
+                : null,
+            onTap: auth.isLoading
+                ? null
+                : () async {
+                    await BiometricWrapper.runWithAuthBypass(auth.signIn);
+                    if (context.mounted && auth.lastError != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            auth.lastError!,
+                            style: GoogleFonts.inter(color: Colors.white),
+                          ),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                  },
           ),
         ],
       ],

@@ -16,6 +16,7 @@ class AuthProvider extends ChangeNotifier {
   bool _autoSync = false;
   AppUser? _currentUser;
   bool _isLoading = true;
+  String? _lastError;
   StreamSubscription<AppUser?>? _userSub;
 
   AuthProvider(this._syncService, this._prefs) {
@@ -25,6 +26,7 @@ class AuthProvider extends ChangeNotifier {
   bool get autoSync => _autoSync;
   AppUser? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
+  String? get lastError => _lastError;
   bool get isSignedIn => _currentUser != null;
   CloudSyncService get syncService => _syncService;
 
@@ -43,8 +45,10 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> signIn() async {
     _isLoading = true;
+    _lastError = null;
     notifyListeners();
     await _syncService.signIn();
+    _lastError = _syncService.lastError;
     _isLoading = false;
     notifyListeners();
   }

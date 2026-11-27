@@ -19,16 +19,22 @@ class CloudSyncService {
 
   static const _iosClientId =
       '133389928359-pqm3l00qprqqej2oqjc0vcp5tobbm7dj.apps.googleusercontent.com';
+  static const _webClientId =
+      '927960766101-onks5l4bmiqvblvm0eea4hhteesn9m6k'
+      '.apps.googleusercontent.com';
   static const _desktopClientId =
       '133389928359-0ojsajpfffobdvll4nuktg6756ued430.apps.googleusercontent.com';
   static const _desktopClientSecret = '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';
 
   final _currentUserController = StreamController<AppUser?>.broadcast();
   AppUser? _currentUser;
+  String? _lastError;
   GoogleSignInAccount? _googleAccount;
   AuthClient? _desktopAuthClient;
   Future<void>? _googleInitFuture;
   StreamSubscription<GoogleSignInAuthenticationEvent>? _authEventsSub;
+
+  String? get lastError => _lastError;
 
   CloudSyncService() {
     if (Platform.isAndroid || Platform.isIOS) {
@@ -43,6 +49,7 @@ class CloudSyncService {
   Future<void> _initGoogleSignIn() async {
     await GoogleSignIn.instance.initialize(
       clientId: Platform.isIOS ? _iosClientId : null,
+      serverClientId: _webClientId,
     );
     _authEventsSub ??= GoogleSignIn.instance.authenticationEvents.listen(
       (event) {
@@ -70,6 +77,7 @@ class CloudSyncService {
   Stream<AppUser?> get onCurrentUserChanged => _currentUserController.stream;
 
   Future<AppUser?> signIn() async {
+    _lastError = null;
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       return _signInDesktop();
     }
@@ -98,8 +106,15 @@ class CloudSyncService {
       );
       _currentUserController.add(_currentUser);
       return _currentUser;
+    } on GoogleSignInException catch (e) {
+      debugPrint('Google Sign-In failed: $e');
+      if (e.code != GoogleSignInExceptionCode.canceled) {
+        _lastError = e.description ?? 'Google Sign-In failed (${e.code.name}).';
+      }
+      return null;
     } catch (e) {
       debugPrint('Google Sign-In failed: $e');
+      _lastError = 'Google Sign-In failed: $e';
       return null;
     }
   }
