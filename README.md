@@ -1,11 +1,8 @@
-# IT SCANS
 
-A premium, CamScanner-style document scanner for Android, built in Flutter. Scan → auto-crop/enhance (Google ML Kit Document Scanner) → contextual auto-name (ML Kit OCR) → save to local SQLite → sync to Google Drive.
 
-Designed around **Zero Cognitive Load**: one obvious action per screen, immersive scrolling, discoverable kebab menus, Apple-style swipe gestures, and tactile haptic feedback.
+## Portfolio
 
-> **For AI agents:** read `CLAUDE.md` first, not this file. This README is
-> for humans; `CLAUDE.md` is the steering doc with the rules and checklist.
+Explore FaiXal's other software projects and product work:
 
 ## Premium Features
 - **Flexible Monetization**: Offers 100 free scans before gracefully transitioning to a 3-tier choice (Ad-Supported, 400 Consumable Scans, or 1-Year VIP) to support the dev team.
