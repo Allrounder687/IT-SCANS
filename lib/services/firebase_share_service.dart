@@ -13,15 +13,19 @@ class FirebaseShareService {
   bool get _isFirebaseInitialized => Firebase.apps.isNotEmpty;
 
   /// Uploads a PDF to the user's Google Drive, gets a public link, and creates a notification document in the recipient's inbox.
-  Future<void> shareDocument(String pdfPath, String originalName, String recipientEmail) async {
+  Future<void> shareDocument(
+    String pdfPath,
+    String originalName,
+    String recipientEmail,
+  ) async {
     if (!_isFirebaseInitialized) {
       throw Exception('Firebase is not initialized.');
     }
-    
+
     final firebaseUser = _auth.currentUser;
     final syncUser = _syncService.currentUser;
     final userEmail = firebaseUser?.email ?? syncUser?.email;
-    
+
     if (userEmail == null) {
       throw Exception('Must be logged in to share.');
     }
@@ -33,10 +37,15 @@ class FirebaseShareService {
 
     // 1. Upload to Google Drive and get public link
     final uniqueId = DateTime.now().millisecondsSinceEpoch.toString();
-    final downloadUrl = await _syncService.uploadAndGetPublicLink(pdfPath, '${originalName}_$uniqueId.pdf');
-    
+    final downloadUrl = await _syncService.uploadAndGetPublicLink(
+      pdfPath,
+      '${originalName}_$uniqueId.pdf',
+    );
+
     if (downloadUrl == null) {
-      throw Exception('Failed to upload to Google Drive. Check your connection or permissions.');
+      throw Exception(
+        'Failed to upload to Google Drive. Check your connection or permissions.',
+      );
     }
 
     // 2. Create Inbox Document in Firestore

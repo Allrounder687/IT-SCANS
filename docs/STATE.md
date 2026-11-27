@@ -4,7 +4,7 @@
 > This is the single source of truth for "where are we right now" —
 > an agent should be able to read only this file and know what to do next.
 
-**Last updated:** 2026-07-28
+**Last updated:** 2026-11-27
 **Current phase:** 8 — Polish & Store Release
 
 ## Phase map

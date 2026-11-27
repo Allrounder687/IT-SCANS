@@ -1,16 +1,16 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../core/constants.dart';
 
 class MonetizationService {
   static const String _scanCountKey = 'itscans_scan_count';
   static const String _premiumUnlockedKey = 'itscans_premium_unlocked';
-  
-  // Production limit per PRODUCT.md (Set to 0 for debugging)
-  static const int freeScanLimit = 0; 
+
+  static const int freeScanLimit = AppConstants.freeScanLimit;
   static const String _adSupportedKey = 'is_ad_supported';
   static const String _purchasedScansKey = 'purchased_scans';
-  
-  final InAppPurchase _iap = InAppPurchase.instance;
+
+  InAppPurchase get _iap => InAppPurchase.instance;
 
   Future<int> getScanCount() async {
     final prefs = await SharedPreferences.getInstance();
@@ -36,7 +36,7 @@ class MonetizationService {
   Stream<List<PurchaseDetails>> get purchaseStream => _iap.purchaseStream;
 
   Future<bool> isStoreAvailable() async {
-    return await _iap.isAvailable();
+    return _iap.isAvailable();
   }
 
   Future<bool> isAdSupported() async {
@@ -61,14 +61,18 @@ class MonetizationService {
   }
 
   Future<void> buyConsumablePack(ProductDetails productDetails) async {
-    final PurchaseParam purchaseParam = PurchaseParam(productDetails: productDetails);
-    // Use buyConsumable for consumable purchases
-    await InAppPurchase.instance.buyConsumable(purchaseParam: purchaseParam, autoConsume: true);
+    final PurchaseParam purchaseParam =
+        PurchaseParam(productDetails: productDetails);
+    await _iap.buyConsumable(
+      purchaseParam: purchaseParam,
+      autoConsume: true,
+    );
   }
 
   Future<void> buySubscription(ProductDetails productDetails) async {
-    final PurchaseParam purchaseParam = PurchaseParam(productDetails: productDetails);
-    await InAppPurchase.instance.buyNonConsumable(purchaseParam: purchaseParam);
+    final PurchaseParam purchaseParam =
+        PurchaseParam(productDetails: productDetails);
+    await _iap.buyNonConsumable(purchaseParam: purchaseParam);
   }
 
   Future<void> completePurchase(PurchaseDetails purchaseDetails) async {

@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class ScanButton extends StatelessWidget {
   final VoidCallback? onPressed;
-  
+
   const ScanButton({super.key, this.onPressed});
 
   @override

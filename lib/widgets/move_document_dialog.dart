@@ -5,7 +5,10 @@ import '../providers/library_provider.dart';
 import '../core/theme.dart';
 import '../models/scan_document.dart';
 
-Future<void> showMoveDocumentDialog(BuildContext context, ScanDocument document) async {
+Future<void> showMoveDocumentDialog(
+  BuildContext context,
+  ScanDocument document,
+) async {
   await showDialog(
     context: context,
     builder: (context) => MoveDocumentDialog(document: document),
@@ -36,14 +39,15 @@ class _MoveDocumentDialogState extends State<MoveDocumentDialog> {
   Widget build(BuildContext context) {
     final library = context.watch<LibraryProvider>();
     final categories = library.allCategories;
-    
+
     // Ensure selected category is in the list
     if (!categories.contains(_selectedCategory)) {
-      _selectedCategory = categories.isNotEmpty ? categories.first : 'Documents';
+      _selectedCategory =
+          categories.isNotEmpty ? categories.first : 'Documents';
     }
 
-    final subfolders = _selectedCategory != null 
-        ? library.getSubfoldersForCategory(_selectedCategory!) 
+    final subfolders = _selectedCategory != null
+        ? library.getSubfoldersForCategory(_selectedCategory!)
         : [];
 
     return AlertDialog(
@@ -51,14 +55,20 @@ class _MoveDocumentDialogState extends State<MoveDocumentDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
         'Move "${widget.document.name}"',
-        style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold),
+        style: GoogleFonts.spaceGrotesk(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Select Section', style: GoogleFonts.inter(color: appTextMuted, fontSize: 14)),
+            Text(
+              'Select Section',
+              style: GoogleFonts.inter(color: appTextMuted, fontSize: 14),
+            ),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
@@ -88,10 +98,12 @@ class _MoveDocumentDialogState extends State<MoveDocumentDialog> {
                 ),
               ),
             ),
-            
             if (subfolders.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Text('Select Subfolder (Optional)', style: GoogleFonts.inter(color: appTextMuted, fontSize: 14)),
+              Text(
+                'Select Subfolder (Optional)',
+                style: GoogleFonts.inter(color: appTextMuted, fontSize: 14),
+              ),
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
@@ -114,7 +126,13 @@ class _MoveDocumentDialogState extends State<MoveDocumentDialog> {
                     items: [
                       const DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('None (Root of Section)', style: TextStyle(fontStyle: FontStyle.italic, color: appTextMuted)),
+                        child: Text(
+                          'None (Root of Section)',
+                          style: TextStyle(
+                            fontStyle: FontStyle.italic,
+                            color: appTextMuted,
+                          ),
+                        ),
                       ),
                       ...subfolders.map((sub) {
                         return DropdownMenuItem<String?>(
@@ -139,15 +157,23 @@ class _MoveDocumentDialogState extends State<MoveDocumentDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: appAccent,
             foregroundColor: Colors.black,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
           onPressed: () {
             if (_selectedCategory != null) {
-              library.moveDocument(widget.document.id, _selectedCategory!, _selectedSubfolder);
+              library.moveDocument(
+                widget.document.id,
+                _selectedCategory!,
+                _selectedSubfolder,
+              );
               Navigator.pop(context);
             }
           },
-          child: Text('Move', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          child: Text(
+            'Move',
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );

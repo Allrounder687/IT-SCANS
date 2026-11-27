@@ -1,6 +1,7 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:math' as math;
 import '../core/theme.dart';
 
 class BeamWipeOverlay extends StatefulWidget {
@@ -12,7 +13,8 @@ class BeamWipeOverlay extends StatefulWidget {
   State<BeamWipeOverlay> createState() => _BeamWipeOverlayState();
 }
 
-class _BeamWipeOverlayState extends State<BeamWipeOverlay> with SingleTickerProviderStateMixin {
+class _BeamWipeOverlayState extends State<BeamWipeOverlay>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   bool _animationComplete = false;
 
@@ -25,20 +27,20 @@ class _BeamWipeOverlayState extends State<BeamWipeOverlay> with SingleTickerProv
     );
 
     _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
+      if (status == AnimationStatus.completed && mounted) {
         setState(() {
           _animationComplete = true;
         });
       }
     });
 
-    // Start animation immediately
-    _controller.forward();
-    
-    // Trigger haptic in middle of animation
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) HapticFeedback.lightImpact();
-    });
+    unawaited(_controller.forward());
+
+    unawaited(
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) unawaited(HapticFeedback.lightImpact());
+      }),
+    );
   }
 
   @override
@@ -60,9 +62,8 @@ class _BeamWipeOverlayState extends State<BeamWipeOverlay> with SingleTickerProv
           animation: _controller,
           builder: (context, child) {
             final screenHeight = MediaQuery.of(context).size.height;
-            // The box starts at the top (covering everything) and moves down.
             final beamY = _controller.value * screenHeight;
-            
+
             return Positioned(
               top: beamY,
               left: 0,
@@ -71,7 +72,7 @@ class _BeamWipeOverlayState extends State<BeamWipeOverlay> with SingleTickerProv
               child: Container(
                 decoration: BoxDecoration(
                   color: appBackground,
-                  border: Border(
+                  border: const Border(
                     top: BorderSide(
                       color: appAccent,
                       width: 3.0,
@@ -83,8 +84,8 @@ class _BeamWipeOverlayState extends State<BeamWipeOverlay> with SingleTickerProv
                       blurRadius: 20.0,
                       spreadRadius: 2.0,
                       offset: const Offset(0, -5),
-                    )
-                  ]
+                    ),
+                  ],
                 ),
               ),
             );

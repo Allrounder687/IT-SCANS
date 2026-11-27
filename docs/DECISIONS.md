@@ -16,6 +16,11 @@ Template for a new entry:
 
 ---
 
+## 2026-11-27 — Native Android Scan Recovery, Save-First Pipeline, and Cached PDF Thumbnails
+**Decision:** (1) Switched `ScannerService` to `getScannedDocumentAsPdf(page: 100)` and always copy scanned PDFs to permanent storage immediately, deferring serialized 1024px `OcrService` analysis until after `ExportScreen` closes. (2) Added `MainActivity.kt` `onActivityResult` recovery for ML Kit request codes (`213312`/`216612`) so Activity/process recreation during scanning persists the PDF to `files/scans/` and recovers it on next boot. (3) Replaced live `flutter_pdfview` `PDFView` PlatformViews on Home screen cards with a serialized disk-cached `pdfx` JPEG thumbnail renderer in `AppPdfViewer`.
+**Why:** `flutter_doc_scanner` defaults to `page = 4` and drops `pendingResult` on Android Activity recreation; meanwhile simultaneous `PDFView` + `pdfx` + ML Kit TextRecognizer allocations triggered OOM restarts ("app refreshes") before `LibraryProvider.addDocument` ever ran.
+**Reversible?** Yes — each component is isolated behind `ScannerService`, `AppPdfViewer`, and `MainActivity`'s `com.syeds.itscans/platform` channel.
+
 ## 2026-07-28 — Added "instant eye-catcher" design pass: launch beam-wipe, fanned home stack, shared-element PDF transition, beam-synced haptic
 **Decision:** Added four specific polish items to differentiate the app from
 a "default Material widgets" look: (1) a one-time beam-wipe transition on

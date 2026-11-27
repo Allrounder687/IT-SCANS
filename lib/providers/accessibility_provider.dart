@@ -3,10 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AccessibilityProvider extends ChangeNotifier {
   final SharedPreferences _prefs;
-  
+
   static const String _largeTextKey = 'is_large_text_enabled';
   static const String _textScaleKey = 'text_scale_factor';
-  
+
   bool _isLargeTextEnabled = false;
   double _textScaleFactor = 1.3;
 
@@ -17,7 +17,7 @@ class AccessibilityProvider extends ChangeNotifier {
 
   bool get isLargeTextEnabled => _isLargeTextEnabled;
   double get textScaleFactor => _textScaleFactor;
-  
+
   double get currentScale => _isLargeTextEnabled ? _textScaleFactor : 1.0;
 
   Future<void> toggleLargeText() async {

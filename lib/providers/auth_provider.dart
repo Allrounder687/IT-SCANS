@@ -1,24 +1,25 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import '../services/cloud_sync_service.dart';
-import '../models/scan_document.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_user.dart';
+import '../models/scan_document.dart';
 import '../providers/library_provider.dart';
+import '../services/cloud_sync_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final CloudSyncService _syncService;
   final SharedPreferences _prefs;
-  
+
   bool _autoSync = false;
   AppUser? _currentUser;
   bool _isLoading = true;
+  StreamSubscription<AppUser?>? _userSub;
 
   AuthProvider(this._syncService, this._prefs) {
-    _init();
+    unawaited(_init());
   }
 
   bool get autoSync => _autoSync;
@@ -29,8 +30,8 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _init() async {
     _autoSync = _prefs.getBool('auto_sync') ?? false;
-    
-    _syncService.onCurrentUserChanged.listen((account) {
+
+    _userSub = _syncService.onCurrentUserChanged.listen((account) {
       _currentUser = account;
       notifyListeners();
     });
@@ -67,74 +68,77 @@ class AuthProvider extends ChangeNotifier {
   Future<int> restoreFromCloud(LibraryProvider library) async {
     _isLoading = true;
     notifyListeners();
-    
+
     int restoredCount = 0;
     try {
-      // 1. Try to download and import the structure JSON backup first
       final structureJson = await _syncService.downloadStructureJson();
       if (structureJson != null && structureJson.isNotEmpty) {
-        // We need access to StorageService here. LibraryProvider doesn't expose it directly, 
-        // so we'll add an importStructure method to LibraryProvider.
         await library.importStructure(structureJson);
       }
 
       final cloudDocs = await _syncService.fetchCloudHierarchy();
       if (cloudDocs.isEmpty) return 0;
-      
+
       final localDir = await getApplicationDocumentsDirectory();
-      
+
       for (final cloudDoc in cloudDocs) {
         final df = cloudDoc.file;
         if (df.name == null || !df.name!.endsWith('.pdf')) continue;
-        
+
         final docName = df.name!.replaceAll('.pdf', '');
-        
-        // Ensure section exists if custom
-        final defaultCategories = ['All', 'Receipts', 'Invoices', 'IDs', 'Taxes', 'Notes', 'Documents'];
+
+        const defaultCategories = [
+          'All',
+          'Receipts',
+          'Invoices',
+          'IDs',
+          'Taxes',
+          'Notes',
+          'Documents',
+        ];
         if (!defaultCategories.contains(cloudDoc.category)) {
           if (!library.sections.any((s) => s.name == cloudDoc.category)) {
             await library.addSection(cloudDoc.category);
           }
         }
-        
-        // Ensure subfolder exists
+
         if (cloudDoc.subfolder != null) {
-          await library.ensureSubfolderExists(cloudDoc.category, cloudDoc.subfolder!);
+          await library.ensureSubfolderExists(
+            cloudDoc.category,
+            cloudDoc.subfolder!,
+          );
         }
 
-        // 1. Check for exact match via Drive ID
-        if (library.documents.any((d) => d.driveId != null && d.driveId == df.id)) {
-          continue; // Already anchored perfectly
+        if (library.documents
+            .any((d) => d.driveId != null && d.driveId == df.id)) {
+          continue;
         }
 
-        // 2. Check for name match and compare byte size
-        final existingDocs = library.documents.where((d) => d.name == docName).toList();
+        final existingDocs =
+            library.documents.where((d) => d.name == docName).toList();
         if (existingDocs.isNotEmpty) {
           bool exactMatchFound = false;
           final cloudSize = int.tryParse(df.size ?? '0') ?? 0;
-          
+
           for (final localDoc in existingDocs) {
             final localFile = File(localDoc.filePath);
             if (await localFile.exists()) {
               final localSize = await localFile.length();
               if (localSize == cloudSize) {
-                // The sizes match! Same file.
-                await library.updateSyncStatus(localDoc.id, true, driveId: df.id);
-                // Also update category/subfolder to match cloud source of truth
-                if (localDoc.category != cloudDoc.category || localDoc.subfolder != cloudDoc.subfolder) {
-                   // We don't have a combined update method, but we can do it via a quick copyWith and save
-                   // But actually, just updating sync status is enough for now.
-                }
+                await library.updateSyncStatus(
+                  localDoc.id,
+                  true,
+                  driveId: df.id,
+                );
                 exactMatchFound = true;
                 break;
               }
             }
           }
-          
+
           if (exactMatchFound) continue;
         }
 
-        // 3. Download it
         String finalDocName = docName;
         if (existingDocs.isNotEmpty) {
           finalDocName = '$docName (Cloud Copy)';
@@ -142,13 +146,13 @@ class AuthProvider extends ChangeNotifier {
 
         final docId = DateTime.now().microsecondsSinceEpoch.toString();
         final savePath = p.join(localDir.path, '$docId.pdf');
-        
+
         final success = await _syncService.downloadFile(df, savePath);
         if (success) {
           final newDoc = ScanDocument(
             id: docId,
             name: finalDocName,
-            pageCount: 1, 
+            pageCount: 1,
             filePath: savePath,
             createdAt: df.createdTime ?? DateTime.now(),
             isSynced: true,
@@ -156,7 +160,7 @@ class AuthProvider extends ChangeNotifier {
             category: cloudDoc.category,
             subfolder: cloudDoc.subfolder,
           );
-          
+
           await library.addDocument(newDoc);
           restoredCount++;
         }
@@ -167,7 +171,13 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
-    
+
     return restoredCount;
+  }
+
+  @override
+  void dispose() {
+    unawaited(_userSub?.cancel() ?? Future<void>.value());
+    super.dispose();
   }
 }

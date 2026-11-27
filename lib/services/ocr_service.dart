@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:pdfx/pdfx.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:pdfx/pdfx.dart';
 
 class OcrResult {
   final String? name;
@@ -12,51 +13,74 @@ class OcrResult {
 }
 
 class OcrService {
+  // Serialize OCR calls across the app so we never render multiple PDFs or
+  // allocate multiple ML Kit recognizers simultaneously (prevents OOM crashes).
+  static Future<void> _queue = Future<void>.value();
+
   /// Renders the first page of the PDF, extracts text, categorizes it, and finds a name.
-  Future<OcrResult?> analyzeDocument(String pdfPath) async {
+  Future<OcrResult?> analyzeDocument(String pdfPath) {
+    final completer = Completer<OcrResult?>();
+    _queue = _queue.then((_) async {
+      try {
+        final result = await _analyzeSingleDocument(pdfPath);
+        completer.complete(result);
+      } catch (e) {
+        debugPrint('OCR Auto-naming failed: $e');
+        completer.complete(null);
+      }
+    });
+    return completer.future;
+  }
+
+  Future<OcrResult?> _analyzeSingleDocument(String pdfPath) async {
+    if (!await File(pdfPath).exists()) return null;
+
     PdfDocument? document;
+    PdfPage? page;
+    TextRecognizer? textRecognizer;
+    File? tempFile;
+
     try {
       document = await PdfDocument.openFile(pdfPath);
-      final page = await document.getPage(1);
-      
-      // Calculate a safe scale factor to prevent OOM on mid-range devices.
-      // We aim for a max dimension of around 1600 pixels which is plenty for OCR.
-      double scale = 1.0;
+      page = await document.getPage(1);
+
+      // Keep max dimension around 1024px to stay well below mobile OOM limits
+      // while preserving crisp Latin text for ML Kit recognition.
       final maxDim = page.width > page.height ? page.width : page.height;
-      if (maxDim > 800) {
-        scale = 1600 / maxDim;
-      } else {
-        scale = 2.0; // If it's a small PDF (e.g. 595x842 points), 2x scale is safe
-      }
-      
+      final double scale = maxDim > 0
+          ? (maxDim > 1024 ? 1024 / maxDim : (1024 / maxDim).clamp(1.0, 2.0))
+          : 1.0;
+
       final pageImage = await page.render(
         width: page.width * scale,
         height: page.height * scale,
         format: PdfPageImageFormat.jpeg,
       );
-      
+
       await page.close();
+      page = null;
+      await document.close();
+      document = null;
+
       if (pageImage == null) return null;
 
       final tempDir = Directory.systemTemp;
-      final tempFile = File('${tempDir.path}/ocr_temp_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      tempFile = File(
+        '${tempDir.path}/ocr_temp_${DateTime.now().microsecondsSinceEpoch}.jpg',
+      );
       await tempFile.writeAsBytes(pageImage.bytes);
-      
+
       final inputImage = InputImage.fromFile(tempFile);
-      final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
-      final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
-      await textRecognizer.close();
-      
-      if (await tempFile.exists()) {
-        await tempFile.delete();
-      }
-      
+      textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+      final RecognizedText recognizedText =
+          await textRecognizer.processImage(inputImage);
+
       if (recognizedText.text.isEmpty) return null;
 
       final fullText = recognizedText.text;
       final category = _determineCategory(fullText);
       final name = _extractName(recognizedText);
-      
+
       return OcrResult(
         name: name,
         category: category,
@@ -66,33 +90,48 @@ class OcrService {
       debugPrint('OCR Auto-naming failed: $e');
       return null;
     } finally {
-      if (document != null) {
-        await document.close();
+      await page?.close();
+      await document?.close();
+      await textRecognizer?.close();
+      if (tempFile != null && await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (_) {}
       }
     }
   }
 
   String? _determineCategory(String text) {
     final lowerText = text.toLowerCase();
-    
-    if (lowerText.contains('total') || lowerText.contains('receipt') || lowerText.contains('cash') || lowerText.contains('\$')) {
+
+    if (lowerText.contains('total') ||
+        lowerText.contains('receipt') ||
+        lowerText.contains('cash') ||
+        lowerText.contains('\$')) {
       return 'Receipts';
-    } else if (lowerText.contains('invoice') || lowerText.contains('due') || lowerText.contains('bill to')) {
+    } else if (lowerText.contains('invoice') ||
+        lowerText.contains('due') ||
+        lowerText.contains('bill to')) {
       return 'Invoices';
-    } else if (lowerText.contains('id') || lowerText.contains('passport') || lowerText.contains('license') || lowerText.contains('identity')) {
+    } else if (lowerText.contains('id') ||
+        lowerText.contains('passport') ||
+        lowerText.contains('license') ||
+        lowerText.contains('identity')) {
       return 'IDs';
-    } else if (lowerText.contains('tax') || lowerText.contains('w-2') || lowerText.contains('1099')) {
+    } else if (lowerText.contains('tax') ||
+        lowerText.contains('w-2') ||
+        lowerText.contains('1099')) {
       return 'Taxes';
     } else if (lowerText.length > 50) {
       return 'Notes';
     }
-    
+
     return 'Documents';
   }
-  
+
   String? _extractName(RecognizedText recognizedText) {
     if (recognizedText.blocks.isEmpty) return null;
-      
+
     for (final block in recognizedText.blocks) {
       for (final line in block.lines) {
         final text = line.text.trim();
@@ -105,7 +144,7 @@ class OcrService {
     }
     return null;
   }
-  
+
   String _capitalize(String text) {
     if (text.isEmpty) return text;
     String clean = text.replaceAll('\n', ' ').trim();

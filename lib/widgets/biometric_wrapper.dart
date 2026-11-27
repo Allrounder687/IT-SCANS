@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../core/theme.dart';
 
 class BiometricWrapper extends StatefulWidget {
@@ -10,11 +11,26 @@ class BiometricWrapper extends StatefulWidget {
 
   const BiometricWrapper({super.key, required this.child});
 
+  static int _authBypassDepth = 0;
+
+  /// Suppresses auto-lock during intentional in-app external activities
+  /// (document scanner, file/image picker, share sheet, OAuth consent) so
+  /// returning to the app does not immediately lock the screen.
+  static Future<T> runWithAuthBypass<T>(Future<T> Function() action) async {
+    _authBypassDepth++;
+    try {
+      return await action();
+    } finally {
+      _authBypassDepth = _authBypassDepth > 0 ? _authBypassDepth - 1 : 0;
+    }
+  }
+
   @override
   State<BiometricWrapper> createState() => _BiometricWrapperState();
 }
 
-class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBindingObserver {
+class _BiometricWrapperState extends State<BiometricWrapper>
+    with WidgetsBindingObserver {
   final LocalAuthentication _auth = LocalAuthentication();
   bool _isAuthenticated = false;
   bool _requiresAuth = false;
@@ -26,7 +42,7 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkRequirementsAndAuthenticate();
+    unawaited(_checkRequirementsAndAuthenticate());
   }
 
   @override
@@ -37,8 +53,11 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (BiometricWrapper._authBypassDepth > 0) {
+      return;
+    }
     if (state == AppLifecycleState.resumed) {
-      _checkRequirementsAndAuthenticate();
+      unawaited(_checkRequirementsAndAuthenticate());
     } else if (state == AppLifecycleState.paused) {
       if (_requiresAuth && !_isAuthenticating) {
         _pausedAt = DateTime.now();
@@ -55,7 +74,7 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
     final prefs = await SharedPreferences.getInstance();
     final requiresAuth = prefs.getBool('require_biometrics') ?? false;
     final delaySeconds = prefs.getInt('autolock_delay_seconds') ?? 0;
-    
+
     if (mounted) {
       setState(() {
         _requiresAuth = requiresAuth;
@@ -68,13 +87,11 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
         final elapsed = DateTime.now().difference(_pausedAt!).inSeconds;
         _pausedAt = null;
         if (elapsed < delaySeconds) {
-          return; // Do not lock
-        } else {
-          if (mounted) {
-            setState(() {
-              _isAuthenticated = false;
-            });
-          }
+          return;
+        } else if (mounted) {
+          setState(() {
+            _isAuthenticated = false;
+          });
         }
       }
       _pausedAt = null;
@@ -82,12 +99,10 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
       if (!_isAuthenticated && !_isAuthenticating) {
         await _authenticate();
       }
-    } else {
-      if (mounted) {
-        setState(() {
-          _isAuthenticated = true;
-        });
-      }
+    } else if (mounted) {
+      setState(() {
+        _isAuthenticated = true;
+      });
     }
   }
 
@@ -100,9 +115,10 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
 
     bool authenticated = false;
     try {
-      final isAvailable = await _auth.canCheckBiometrics || await _auth.isDeviceSupported();
+      final isAvailable =
+          await _auth.canCheckBiometrics || await _auth.isDeviceSupported();
       if (!isAvailable) {
-        authenticated = true; // Fallback if device doesn't support it
+        authenticated = true;
       } else {
         authenticated = await _auth.authenticate(
           localizedReason: 'Unlock IT SCANS to view your documents',
@@ -128,10 +144,7 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
     return Stack(
       textDirection: TextDirection.ltr,
       children: [
-        // Always render the child to preserve its state and ongoing tasks (e.g. document scanning)
         widget.child,
-
-        // Show the lock screen as an overlay when auth is required
         if (_requiresAuth && !_isAuthenticated)
           Positioned.fill(
             child: Scaffold(
@@ -140,7 +153,7 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.lock_outline, size: 64, color: appAccent),
+                    const Icon(Icons.lock_outline, size: 64, color: appAccent),
                     const SizedBox(height: 24),
                     Text(
                       'App Locked',
@@ -164,7 +177,10 @@ class _BiometricWrapperState extends State<BiometricWrapper> with WidgetsBinding
                       style: ElevatedButton.styleFrom(
                         backgroundColor: appAccent,
                         foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 16,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

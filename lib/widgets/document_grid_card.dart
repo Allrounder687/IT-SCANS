@@ -1,15 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:provider/provider.dart';
-import '../models/scan_document.dart';
-import '../core/theme.dart';
-import '../providers/library_provider.dart';
-import 'app_pdf_viewer.dart';
-import 'rotating_subtitle.dart';
-import 'move_document_dialog.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../core/theme.dart';
+import '../models/scan_document.dart';
+import 'app_pdf_viewer.dart';
+import 'move_document_dialog.dart';
+import 'rotating_subtitle.dart';
 
 class DocumentGridCard extends StatelessWidget {
   final ScanDocument document;
@@ -35,48 +34,68 @@ class DocumentGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        HapticFeedback.lightImpact();
+        unawaited(HapticFeedback.lightImpact());
         onTap();
       },
       onLongPress: () {
         if (isSelectionMode) return;
-        HapticFeedback.selectionClick();
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: appSurface,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          builder: (context) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.share, color: Colors.blueAccent),
-                  title: Text('Open / Share', style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onTap();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.edit, color: Colors.white),
-                  title: Text('Rename', style: GoogleFonts.inter(color: Colors.white, fontSize: 16)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onRename();
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: Text('Delete', style: GoogleFonts.inter(color: Colors.red, fontSize: 16)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    onDelete();
-                  },
-                ),
-              ],
+        unawaited(HapticFeedback.selectionClick());
+        unawaited(
+          showModalBottomSheet<void>(
+            context: context,
+            backgroundColor: appSurface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            builder: (context) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.share, color: Colors.blueAccent),
+                    title: Text(
+                      'Open / Share',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onTap();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.edit, color: Colors.white),
+                    title: Text(
+                      'Rename',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onRename();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: Text(
+                      'Delete',
+                      style: GoogleFonts.inter(
+                        color: Colors.red,
+                        fontSize: 16,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onDelete();
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -100,8 +119,14 @@ class DocumentGridCard extends StatelessWidget {
                     color: appPaper,
                     child: AbsorbPointer(
                       child: document.filePath.toLowerCase().endsWith('.pdf')
-                        ? AppPdfViewer(filePath: document.filePath, isThumbnail: true)
-                        : Image.file(File(document.filePath), fit: BoxFit.cover),
+                          ? AppPdfViewer(
+                              filePath: document.filePath,
+                              isThumbnail: true,
+                            )
+                          : Image.file(
+                              File(document.filePath),
+                              fit: BoxFit.cover,
+                            ),
                     ),
                   ),
                   if (isSelectionMode)
@@ -128,22 +153,33 @@ class DocumentGridCard extends StatelessWidget {
                       child: PopupMenuButton<String>(
                         icon: const Icon(Icons.more_horiz, color: appTextMuted),
                         color: appSurface,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         itemBuilder: (context) => [
                           PopupMenuItem(
                             value: 'move',
                             child: Row(
                               children: [
-                                const Icon(Icons.drive_file_move_outline, size: 18, color: Colors.white),
+                                const Icon(
+                                  Icons.drive_file_move_outline,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
                                 const SizedBox(width: 12),
-                                Text('Move', style: GoogleFonts.inter(color: Colors.white)),
+                                Text(
+                                  'Move',
+                                  style: GoogleFonts.inter(color: Colors.white),
+                                ),
                               ],
                             ),
                           ),
                         ],
                         onSelected: (value) {
                           if (value == 'move') {
-                            showMoveDocumentDialog(context, document);
+                            unawaited(
+                              showMoveDocumentDialog(context, document),
+                            );
                           }
                         },
                       ),
@@ -184,7 +220,11 @@ class DocumentGridCard extends StatelessWidget {
                         ),
                       ),
                       if (document.isSynced)
-                        const Icon(Icons.cloud_done, color: appAccent, size: 14),
+                        const Icon(
+                          Icons.cloud_done,
+                          color: appAccent,
+                          size: 14,
+                        ),
                     ],
                   ),
                 ],
@@ -199,13 +239,13 @@ class DocumentGridCard extends StatelessWidget {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     final hour = date.hour;
     final minute = date.minute.toString().padLeft(2, '0');
     final amPm = hour >= 12 ? 'PM' : 'AM';
     final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
     final timeStr = '$hour12:$minute $amPm';
-    
+
     if (difference.inDays == 0 && now.day == date.day) {
       return 'Today, $timeStr';
     } else if (difference.inDays <= 1 && now.day != date.day) {
@@ -220,11 +260,11 @@ class DocumentGridCard extends StatelessWidget {
       final file = File(path);
       if (!file.existsSync()) return '0 B';
       final bytes = file.lengthSync();
-      if (bytes <= 0) return "0 B";
-      const suffixes = ["B", "KB", "MB", "GB", "TB"];
-      var i = (math.log(bytes) / math.log(1024)).floor();
+      if (bytes <= 0) return '0 B';
+      const suffixes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      final i = (math.log(bytes) / math.log(1024)).floor();
       return '${(bytes / math.pow(1024, i)).toStringAsFixed(1)} ${suffixes[i]}';
-    } catch (e) {
+    } catch (_) {
       return '0 B';
     }
   }

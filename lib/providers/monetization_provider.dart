@@ -5,8 +5,8 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../services/monetization_service.dart';
 
 class MonetizationProvider extends ChangeNotifier {
-  final MonetizationService _service = MonetizationService();
-  late StreamSubscription<List<PurchaseDetails>> _subscription;
+  final MonetizationService _service;
+  StreamSubscription<List<PurchaseDetails>>? _subscription;
 
   bool _isLoading = true;
   int _scanCount = 0;
@@ -16,11 +16,10 @@ class MonetizationProvider extends ChangeNotifier {
 
   static const String premiumProductId = 'scan_pack_400';
   static const String yearlyProductId = 'yearly_subscription';
-  
+
   ProductDetails? _premiumProduct;
   ProductDetails? _yearlyProduct;
-  
-  // Custom discount state for coupons
+
   bool _isHalfPrice = false;
   bool get isHalfPrice => _isHalfPrice;
 
@@ -29,14 +28,19 @@ class MonetizationProvider extends ChangeNotifier {
   bool get isPremium => _isPremium;
   bool get isAdSupported => _isAdSupported;
   int get purchasedScans => _purchasedScans;
-  
-  bool get canScan => _isPremium || _isAdSupported || _scanCount < (MonetizationService.freeScanLimit + _purchasedScans);
-  int get remainingFreeScans => (MonetizationService.freeScanLimit + _purchasedScans) - _scanCount;
+
+  bool get canScan =>
+      _isPremium ||
+      _isAdSupported ||
+      _scanCount < (MonetizationService.freeScanLimit + _purchasedScans);
+  int get remainingFreeScans =>
+      (MonetizationService.freeScanLimit + _purchasedScans) - _scanCount;
   ProductDetails? get premiumProduct => _premiumProduct;
   ProductDetails? get yearlyProduct => _yearlyProduct;
 
-  MonetizationProvider() {
-    _init();
+  MonetizationProvider([MonetizationService? service])
+      : _service = service ?? MonetizationService() {
+    unawaited(_init());
   }
 
   Future<void> _init() async {
@@ -46,13 +50,17 @@ class MonetizationProvider extends ChangeNotifier {
     _purchasedScans = await _service.getPurchasedScans();
 
     if (Platform.isAndroid || Platform.isIOS) {
-      _subscription = _service.purchaseStream.listen((purchaseDetailsList) {
-        _listenToPurchaseUpdated(purchaseDetailsList);
-      }, onDone: () {
-        _subscription.cancel();
-      }, onError: (error) {
-        // handle error
-      });
+      _subscription = _service.purchaseStream.listen(
+        (purchaseDetailsList) {
+          _listenToPurchaseUpdated(purchaseDetailsList);
+        },
+        onDone: () {
+          _subscription?.cancel();
+        },
+        onError: (Object error) {
+          debugPrint('IAP stream error: $error');
+        },
+      );
     }
 
     await _loadProducts();
@@ -81,8 +89,9 @@ class MonetizationProvider extends ChangeNotifier {
       return;
     }
 
-    final ProductDetailsResponse response = await InAppPurchase.instance.queryProductDetails({premiumProductId, yearlyProductId});
-    for (var product in response.productDetails) {
+    final ProductDetailsResponse response = await InAppPurchase.instance
+        .queryProductDetails({premiumProductId, yearlyProductId});
+    for (final product in response.productDetails) {
       if (product.id == premiumProductId) {
         _premiumProduct = product;
       } else if (product.id == yearlyProductId) {
@@ -99,9 +108,8 @@ class MonetizationProvider extends ChangeNotifier {
 
   Future<void> purchaseYearly() async {
     if (_yearlyProduct != null) {
-      await _service.buySubscription(_yearlyProduct!); // Subscription acts as a premium unlock for this app
+      await _service.buySubscription(_yearlyProduct!);
     } else {
-      // Mock for debug if product doesn't exist yet in console
       await _service.setPremiumUnlocked(true);
       _isPremium = true;
       notifyListeners();
@@ -129,12 +137,13 @@ class MonetizationProvider extends ChangeNotifier {
     await _service.restorePurchases();
   }
 
-  void _listenToPurchaseUpdated(List<PurchaseDetails> purchaseDetailsList) async {
+  Future<void> _listenToPurchaseUpdated(
+    List<PurchaseDetails> purchaseDetailsList,
+  ) async {
     for (final purchaseDetails in purchaseDetailsList) {
-      if (purchaseDetails.status == PurchaseStatus.purchased || 
+      if (purchaseDetails.status == PurchaseStatus.purchased ||
           purchaseDetails.status == PurchaseStatus.restored) {
         if (purchaseDetails.productID == premiumProductId) {
-          // Increment consumable scans
           await _service.addPurchasedScans(400);
           _purchasedScans = await _service.getPurchasedScans();
           notifyListeners();
@@ -144,7 +153,7 @@ class MonetizationProvider extends ChangeNotifier {
           notifyListeners();
         }
       }
-      
+
       if (purchaseDetails.status != PurchaseStatus.pending) {
         await _service.completePurchase(purchaseDetails);
       }
@@ -153,7 +162,7 @@ class MonetizationProvider extends ChangeNotifier {
 
   @override
   void dispose() {
-    _subscription.cancel();
+    unawaited(_subscription?.cancel() ?? Future<void>.value());
     super.dispose();
   }
 }

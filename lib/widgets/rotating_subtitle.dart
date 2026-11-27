@@ -24,7 +24,7 @@ class _RotatingSubtitleState extends State<RotatingSubtitle> {
     super.initState();
     // Slightly offset the initial timer so all cards don't animate at the exact same millisecond
     final delay = (hashCode % 1000) + 2000;
-    
+
     Future.delayed(Duration(milliseconds: delay), () {
       if (mounted) {
         _timer = Timer.periodic(const Duration(seconds: 3), (timer) {

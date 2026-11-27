@@ -7,6 +7,21 @@ made — not batched later.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-11-27
+
+### Fixed
+- **Multi-Page Scan Limit (4-Page Cap):** Passed explicit `page: 100` to `flutter_doc_scanner` (`getScannedDocumentAsPdf`) and counted PDF pages on platforms that return `0` (iOS), resolving the 3–5 page ceiling.
+- **Scan Loss & App Refresh After Scanning:**
+  - Always copy scanned PDFs out of temporary ML Kit cache into permanent app storage (`<AppDocs>/scans` or custom save folder) and resolve `content://` URIs natively on Android before returning.
+  - Added native Android Activity-recreation scan recovery in `MainActivity.kt` so OS process/Activity kills during ML Kit scanning no longer drop the resulting PDF.
+  - Persist scanned documents to SQLite & `LibraryProvider` immediately before opening `ExportScreen`, and serialize `OcrService` in the background at 1024px max resolution after `ExportScreen` closes to eliminate simultaneous PDF rendering OOM crashes.
+  - Replaced live `PDFView` PlatformViews on Home screen cards with lightweight serialized JPEG thumbnail caching in `AppPdfViewer` to prevent `Pdfium` surface OOMs and `Hero` flicker.
+  - Added `BiometricWrapper.runWithAuthBypass` around scanner, image/file pickers, sign-in, and share sheets so returning to the app does not immediately re-lock and bounce lifecycle state.
+- **Dependency Upgrade Compile Errors & Runtime Faults:**
+  - Migrated `CloudSyncService` to `google_sign_in` v7 (`GoogleSignIn.instance`, `authenticate`, `attemptLightweightAuthentication`, `authorizationClient`), `SettingsScreen` to `FilePicker.getDirectoryPath()`, and `ExportScreen` to `SharePlus.instance.share`.
+  - Restored `MonetizationService.freeScanLimit` to `AppConstants.freeScanLimit` (`400`, removing the `0` debug override), fixed `MonetizationProvider` `LateInitializationError` on desktop/tests, and re-enabled `Firebase.initializeApp` in `main.dart`.
+  - Fixed `LibraryProvider.renameDocument` and `updateSyncStatus` dropping `isSynced`/`driveId`/`subfolder`, guarded startup initialization race via `ready`, and enabled Android 10+ `MediaStore.Downloads` export in `ExportService`.
+
 ### Added
 - **Zero Cognitive Load - Auto-Download Magic:** App silently listens for incoming documents via Firestore, downloads them from Google Drive, and instantly adds them to the library without manual intervention.
 - **Zero Cognitive Load - Unread Badges:** Inbox icon displays a red notification badge for unread documents.

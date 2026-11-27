@@ -1,17 +1,18 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:provider/provider.dart';
+import '../../core/theme.dart';
 import '../../models/scan_document.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/library_provider.dart';
-import '../../core/theme.dart';
 import '../../services/export_service.dart';
 import '../../services/firebase_share_service.dart';
 import '../../widgets/app_pdf_viewer.dart';
+import '../../widgets/biometric_wrapper.dart';
 
 class ExportScreen extends StatelessWidget {
   final ScanDocument document;
@@ -20,16 +21,26 @@ class ExportScreen extends StatelessWidget {
 
   ExportScreen({super.key, required this.document});
 
-  void _shareDocument() {
-    Share.shareXFiles([XFile(document.filePath)], text: 'Here is the scanned document: ${document.name}');
+  Future<void> _shareDocument(ScanDocument doc) async {
+    await BiometricWrapper.runWithAuthBypass(
+      () => SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(doc.filePath)],
+          text: 'Here is the scanned document: ${doc.name}',
+        ),
+      ),
+    );
   }
 
-  Future<void> _savePdf(BuildContext context) async {
+  Future<void> _savePdf(BuildContext context, ScanDocument doc) async {
     try {
-      final savedPath = await _exportService.saveToDownloads(document.filePath, 'IT_SCANS_${document.id}');
+      await _exportService.saveToDownloads(
+        doc.filePath,
+        'IT_SCANS_${doc.name}_${doc.id}',
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved successfully to Downloads!')),
+          const SnackBar(content: Text('Saved successfully to Downloads!')),
         );
       }
     } catch (e) {
@@ -41,16 +52,18 @@ class ExportScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _sendToUser(BuildContext context) async {
+  Future<void> _sendToUser(BuildContext context, ScanDocument doc) async {
     final prefs = await SharedPreferences.getInstance();
     List<String> recentContacts = prefs.getStringList('recent_contacts') ?? [];
-    
+
     if (!context.mounted) return;
-    
+
     final email = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: appSurface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) {
         return Padding(
           padding: const EdgeInsets.all(24.0),
@@ -58,17 +71,28 @@ class ExportScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Recent Contacts', style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(
+                'Recent Contacts',
+                style: GoogleFonts.spaceGrotesk(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 16),
               if (recentContacts.isEmpty)
-                Text('No recent contacts yet.', style: GoogleFonts.inter(color: appTextMuted)),
+                Text(
+                  'No recent contacts yet.',
+                  style: GoogleFonts.inter(color: appTextMuted),
+                ),
               if (recentContacts.isNotEmpty)
                 SizedBox(
                   height: 80,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: recentContacts.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 16),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(width: 16),
                     itemBuilder: (context, index) {
                       final contact = recentContacts[index];
                       return GestureDetector(
@@ -77,10 +101,21 @@ class ExportScreen extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               backgroundColor: appAccent.withValues(alpha: 0.2),
-                              child: Text(contact[0].toUpperCase(), style: const TextStyle(color: appAccent)),
+                              child: Text(
+                                contact[0].toUpperCase(),
+                                style: const TextStyle(color: appAccent),
+                              ),
                             ),
                             const SizedBox(height: 4),
-                            Text(contact.length > 10 ? '${contact.substring(0, 8)}...' : contact, style: GoogleFonts.inter(color: Colors.white, fontSize: 12)),
+                            Text(
+                              contact.length > 10
+                                  ? '${contact.substring(0, 8)}...'
+                                  : contact,
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -93,11 +128,16 @@ class ExportScreen extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: () => Navigator.pop(context, 'NEW_CONTACT'),
                   icon: const Icon(Icons.person_add, color: appAccent),
-                  label: Text('Send to New Contact', style: GoogleFonts.spaceGrotesk(color: Colors.white)),
+                  label: Text(
+                    'Send to New Contact',
+                    style: GoogleFonts.spaceGrotesk(color: Colors.white),
+                  ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: appLine),
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -116,26 +156,43 @@ class ExportScreen extends StatelessWidget {
         builder: (context) {
           return AlertDialog(
             backgroundColor: appSurface,
-            title: Text('Send to User', style: GoogleFonts.spaceGrotesk(color: Colors.white)),
+            title: Text(
+              'Send to User',
+              style: GoogleFonts.spaceGrotesk(color: Colors.white),
+            ),
             content: TextField(
               controller: emailController,
               style: GoogleFonts.inter(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Enter recipient email',
                 hintStyle: GoogleFonts.inter(color: appTextMuted),
-                enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: appLine)),
-                focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: appAccent)),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: appLine),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: appAccent),
+                ),
               ),
               keyboardType: TextInputType.emailAddress,
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Cancel', style: GoogleFonts.inter(color: appTextMuted)),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.inter(color: appTextMuted),
+                ),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context, emailController.text.trim()),
-                child: Text('Send', style: GoogleFonts.inter(color: appAccent, fontWeight: FontWeight.bold)),
+                onPressed: () =>
+                    Navigator.pop(context, emailController.text.trim()),
+                child: Text(
+                  'Send',
+                  style: GoogleFonts.inter(
+                    color: appAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           );
@@ -148,27 +205,44 @@ class ExportScreen extends StatelessWidget {
     if (finalEmail != null && finalEmail.isNotEmpty && context.mounted) {
       if (!recentContacts.contains(finalEmail)) {
         recentContacts.insert(0, finalEmail);
-        if (recentContacts.length > 5) recentContacts = recentContacts.sublist(0, 5);
+        if (recentContacts.length > 5) {
+          recentContacts = recentContacts.sublist(0, 5);
+        }
         await prefs.setStringList('recent_contacts', recentContacts);
       }
-      
+
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sending document...', style: GoogleFonts.inter())),
+        SnackBar(
+          content: Text('Sending document...', style: GoogleFonts.inter()),
+        ),
       );
-      
+
       try {
-        await _shareService.shareDocument(document.filePath, '${document.name}.pdf', finalEmail);
-        
+        await _shareService.shareDocument(
+          doc.filePath,
+          '${doc.name}.pdf',
+          finalEmail,
+        );
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Document sent to $finalEmail successfully!', style: GoogleFonts.inter(color: Colors.black)), backgroundColor: appAccent),
+            SnackBar(
+              content: Text(
+                'Document sent to $finalEmail successfully!',
+                style: GoogleFonts.inter(color: Colors.black),
+              ),
+              backgroundColor: appAccent,
+            ),
           );
         }
       } catch (e) {
         if (context.mounted) {
           final errorMsg = e.toString().replaceAll('Exception: ', '');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: $errorMsg', style: GoogleFonts.inter())),
+            SnackBar(
+              content: Text('Failed: $errorMsg', style: GoogleFonts.inter()),
+            ),
           );
         }
       }
@@ -177,6 +251,10 @@ class ExportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final liveDoc = context.select<LibraryProvider, ScanDocument>(
+      (library) => library.findById(document.id) ?? document,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Export'),
@@ -189,45 +267,48 @@ class ExportScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(32.0),
                 child: Builder(
                   builder: (context) {
-                    final isDesktop = Platform.isWindows || Platform.isMacOS || Platform.isLinux;
-                    final isPdf = document.filePath.toLowerCase().endsWith('.pdf');
-                    final useHero = !(isDesktop && isPdf);
-                    
+                    final isPdf =
+                        liveDoc.filePath.toLowerCase().endsWith('.pdf');
                     final container = Container(
                       decoration: BoxDecoration(
                         color: appPaper,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: document.filePath.toLowerCase().endsWith('.pdf') 
-                        ? Container(
-                            color: Colors.white,
-                            padding: const EdgeInsets.all(16.0),
-                            child: AppPdfViewer(
-                              filePath: document.filePath,
-                              isThumbnail: false,
-                            ),
-                          )
-                        : Image.file(File(document.filePath), fit: BoxFit.cover),
-                    ),
-                  );
-                    
-                    if (useHero) {
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: isPdf
+                            ? Container(
+                                color: Colors.white,
+                                padding: const EdgeInsets.all(16.0),
+                                child: AppPdfViewer(
+                                  filePath: liveDoc.filePath,
+                                  isThumbnail: false,
+                                ),
+                              )
+                            : Image.file(
+                                File(liveDoc.filePath),
+                                fit: BoxFit.cover,
+                              ),
+                      ),
+                    );
+
+                    // Avoid Hero transitions on heavy PDF PlatformViews to
+                    // prevent Android SurfaceView flicker/crashes.
+                    if (!isPdf) {
                       return Hero(
-                        tag: 'card_${document.id}',
+                        tag: 'card_${liveDoc.id}',
                         child: container,
                       );
                     }
                     return container;
-                  }
+                  },
                 ),
               ),
             ),
@@ -240,16 +321,18 @@ class ExportScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    document.name,
+                    liveDoc.name,
                     style: GoogleFonts.spaceGrotesk(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${document.pageCount} page(s)',
+                    '${liveDoc.pageCount} page(s)',
                     style: GoogleFonts.jetBrainsMono(
                       color: appTextMuted,
                       fontSize: 14,
@@ -260,25 +343,37 @@ class ExportScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: _shareDocument,
-                          icon: const Icon(Icons.share, color: Colors.blueAccent),
+                          onPressed: () => _shareDocument(liveDoc),
+                          icon: const Icon(
+                            Icons.share,
+                            color: Colors.blueAccent,
+                          ),
                           label: Text(
                             'Social Media',
-                            style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold),
+                            style: GoogleFonts.spaceGrotesk(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             side: const BorderSide(color: appLine),
-                            backgroundColor: Colors.blueAccent.withValues(alpha: 0.15),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            backgroundColor:
+                                Colors.blueAccent.withValues(alpha: 0.15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () => _savePdf(context),
-                          icon: const Icon(Icons.picture_as_pdf, color: Colors.black),
+                          onPressed: () => _savePdf(context, liveDoc),
+                          icon: const Icon(
+                            Icons.picture_as_pdf,
+                            color: Colors.black,
+                          ),
                           label: Text(
                             'Save PDF',
                             style: GoogleFonts.spaceGrotesk(
@@ -289,7 +384,9 @@ class ExportScreen extends StatelessWidget {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: appAccent,
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),
@@ -299,29 +396,43 @@ class ExportScreen extends StatelessWidget {
                   Consumer<AuthProvider>(
                     builder: (context, auth, child) {
                       if (!auth.isSignedIn) return const SizedBox.shrink();
-                      
+
                       return SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () async {
-                            final driveId = await auth.syncService.uploadDocument(document);
+                            final driveId =
+                                await auth.syncService.uploadDocument(liveDoc);
                             if (context.mounted) {
                               if (driveId != null) {
-                                context.read<LibraryProvider>().updateSyncStatus(document.id, true, driveId: driveId);
+                                unawaited(
+                                  context
+                                      .read<LibraryProvider>()
+                                      .updateSyncStatus(
+                                        liveDoc.id,
+                                        true,
+                                        driveId: driveId,
+                                      ),
+                                );
                               }
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    driveId != null ? 'Backed up to Google Drive!' : 'Failed to backup to Drive',
+                                    driveId != null
+                                        ? 'Backed up to Google Drive!'
+                                        : 'Failed to backup to Drive',
                                     style: GoogleFonts.inter(),
                                   ),
-                                  backgroundColor: driveId != null ? Colors.green : Colors.red,
+                                  backgroundColor: driveId != null
+                                      ? Colors.green
+                                      : Colors.red,
                                   duration: const Duration(seconds: 2),
                                 ),
                               );
                             }
                           },
-                          icon: const Icon(Icons.cloud_upload, color: appAccent),
+                          icon:
+                              const Icon(Icons.cloud_upload, color: appAccent),
                           label: Text(
                             'Backup to Drive',
                             style: GoogleFonts.spaceGrotesk(
@@ -333,7 +444,9 @@ class ExportScreen extends StatelessWidget {
                             foregroundColor: Colors.white,
                             side: const BorderSide(color: appLine),
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       );
@@ -343,8 +456,11 @@ class ExportScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => _sendToUser(context),
-                      icon: const Icon(Icons.send_rounded, color: Colors.blueAccent),
+                      onPressed: () => _sendToUser(context, liveDoc),
+                      icon: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.blueAccent,
+                      ),
                       label: Text(
                         'Direct Send to User',
                         style: GoogleFonts.spaceGrotesk(
@@ -356,7 +472,9 @@ class ExportScreen extends StatelessWidget {
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: appLine),
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),

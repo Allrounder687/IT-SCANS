@@ -52,7 +52,9 @@ class StorageService {
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
-          await db.execute('ALTER TABLE scans ADD COLUMN isSynced INTEGER DEFAULT 0');
+          await db.execute(
+            'ALTER TABLE scans ADD COLUMN isSynced INTEGER DEFAULT 0',
+          );
         }
         if (oldVersion < 3) {
           await db.execute('ALTER TABLE scans ADD COLUMN driveId TEXT');
@@ -95,13 +97,18 @@ class StorageService {
 
   Future<List<AppSection>> getSections() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('sections', orderBy: 'orderIndex ASC');
+    final List<Map<String, dynamic>> maps =
+        await db.query('sections', orderBy: 'orderIndex ASC');
     return List.generate(maps.length, (i) => AppSection.fromMap(maps[i]));
   }
 
   Future<void> saveSection(AppSection section) async {
     final db = await database;
-    await db.insert('sections', section.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'sections',
+      section.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<void> deleteSection(String id) async {
@@ -112,7 +119,8 @@ class StorageService {
 
   Future<List<AppSubfolder>> getSubfolders(String sectionId) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('subfolders', where: 'sectionId = ?', whereArgs: [sectionId]);
+    final List<Map<String, dynamic>> maps = await db
+        .query('subfolders', where: 'sectionId = ?', whereArgs: [sectionId]);
     return List.generate(maps.length, (i) => AppSubfolder.fromMap(maps[i]));
   }
 
@@ -124,14 +132,17 @@ class StorageService {
 
   Future<void> saveSubfolder(AppSubfolder subfolder) async {
     final db = await database;
-    await db.insert('subfolders', subfolder.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'subfolders',
+      subfolder.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<void> deleteSubfolder(String id) async {
     final db = await database;
     await db.delete('subfolders', where: 'id = ?', whereArgs: [id]);
   }
-
 
   Future<List<ScanDocument>> getScanDocuments() async {
     final db = await database;
@@ -173,7 +184,11 @@ class StorageService {
     );
   }
 
-  Future<void> moveDocument(String id, String category, String? subfolder) async {
+  Future<void> moveDocument(
+    String id,
+    String category,
+    String? subfolder,
+  ) async {
     final db = await database;
     await db.update(
       'scans',
@@ -186,14 +201,18 @@ class StorageService {
     );
   }
 
-  Future<void> updateSyncStatus(String id, bool isSynced, {String? driveId}) async {
+  Future<void> updateSyncStatus(
+    String id,
+    bool isSynced, {
+    String? driveId,
+  }) async {
     final db = await database;
-    
+
     final Map<String, dynamic> data = {'isSynced': isSynced ? 1 : 0};
     if (driveId != null) {
       data['driveId'] = driveId;
     }
-    
+
     await db.update(
       'scans',
       data,
@@ -205,12 +224,12 @@ class StorageService {
   Future<String> exportStructureToJson() async {
     final sections = await getSections();
     final subfolders = await getAllSubfolders();
-    
+
     final map = {
       'sections': sections.map((s) => s.toMap()).toList(),
       'subfolders': subfolders.map((s) => s.toMap()).toList(),
     };
-    
+
     return jsonEncode(map);
   }
 
@@ -219,9 +238,9 @@ class StorageService {
       final map = jsonDecode(jsonString) as Map<String, dynamic>;
       final sectionsList = map['sections'] as List<dynamic>? ?? [];
       final subfoldersList = map['subfolders'] as List<dynamic>? ?? [];
-      
+
       final db = await database;
-      
+
       await db.transaction((txn) async {
         for (final secMap in sectionsList) {
           await txn.insert(
