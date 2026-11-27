@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — IT SCANS</title>
+  <style>
+    :root {
+      --bg: #121214;
+      --surface: #1b1c1f;
+      --line: #2a2b2f;
+      --accent: #ffb020;
+      --text: #f5f4f0;
+      --muted: #a1a3aa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      padding: 24px 16px 56px;
+    }
+    main {
+      max-width: 780px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 32px 24px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.85rem;
+      letter-spacing: -0.02em;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(255, 176, 32, 0.14);
+      color: var(--accent);
+      border: 1px solid rgba(255, 176, 32, 0.35);
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    h2 {
+      margin-top: 26px;
+      margin-bottom: 8px;
+      font-size: 1.15rem;
+      color: var(--accent);
+    }
+    p, li { color: #e2e2e6; font-size: 0.97rem; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="badge">IT SCANS (com.syeds.itscans)</div>
+    <h1>Privacy Policy</h1>
+    <div class="meta">
+      Effective Date: November 27, 2026 &bull; Developer: Syed Faisal Majeed &bull; Contact:
+      <a href="mailto:iamfaixaldev@gmail.com">iamfaixaldev@gmail.com</a>
+    </div>
+
+    <p>
+      This Privacy Policy explains how <strong>IT SCANS</strong> (&ldquo;the App&rdquo;), developed by
+      Syed Faisal Majeed, collects, uses, processes, and shares user and device data when you use the
+      IT SCANS Android and iOS applications.
+    </p>
+
+    <h2>1. Local-First Document Scanning &amp; OCR</h2>
+    <ul>
+      <li><strong>Camera &amp; Photos:</strong> The App accesses your device camera and photo library only when you choose to scan or import documents.</li>
+      <li><strong>On-Device Processing:</strong> Document edge detection, enhancement, PDF generation, and Optical Character Recognition (OCR) are performed locally on your device using Google ML Kit / Apple VisionKit. Your scanned document images and extracted text are stored locally on your device in app storage and a local SQLite database.</li>
+      <li><strong>Biometric App Lock:</strong> If you enable App Lock, fingerprint or face authentication is handled strictly by your device&rsquo;s operating system. No biometric data is ever accessed, stored, or transmitted by IT SCANS.</li>
+    </ul>
+
+    <h2>2. Optional Google Sign-In &amp; Google Drive Backup</h2>
+    <ul>
+      <li>Signing in with Google is completely optional.</li>
+      <li>If you choose to sign in, the App receives your Google account name, email address, and profile photo URL solely to display your account status and authenticate requests.</li>
+      <li>With your permission, the App uses the Google Drive <code>drive.file</code> scope to upload, restore, and delete only the PDFs and folder structure created by IT SCANS in your personal Google Drive. We do not access any other files in your Google Drive.</li>
+    </ul>
+
+    <h2>3. Optional Direct Send &amp; Inbox (Firebase)</h2>
+    <ul>
+      <li>If you use the Direct Send feature to share a document with another user by email, the App uploads the document to your Google Drive with a shareable link and writes delivery metadata (sender email, recipient email, file name, file size, download URL, and timestamp) to Google Cloud Firestore so the recipient&rsquo;s in-app Inbox can receive it.</li>
+      <li>Firebase Authentication is used solely to authenticate signed-in users for Inbox access.</li>
+    </ul>
+
+    <h2>4. Advertising (Google AdMob)</h2>
+    <ul>
+      <li>Users on the free Ad-Supported tier are shown banner and interstitial advertisements served by <strong>Google Mobile Ads (AdMob)</strong>.</li>
+      <li>Google AdMob may automatically collect and process device identifiers (such as the Google Advertising ID), IP address, approximate location derived from IP, and ad interaction diagnostics to serve and measure ads in accordance with <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google&rsquo;s Privacy Policy</a>.</li>
+    </ul>
+
+    <h2>5. In-App Purchases</h2>
+    <p>
+      Optional scan packs and subscriptions are processed exclusively by Google Play Billing (or Apple App Store). IT SCANS does not collect, process, or store your payment card or billing details.
+    </p>
+
+    <h2>6. Data Sharing &amp; Third-Party Services</h2>
+    <p>We do not sell your personal data or scanned documents. Data is shared only with:</p>
+    <ul>
+      <li><strong>Google LLC</strong> (Google Drive API, Firebase Authentication, Cloud Firestore, Google Mobile Ads / AdMob, Google Play Billing) to provide optional cloud backup, direct document sharing, advertisements, and purchase verification.</li>
+      <li><strong>Recipients you explicitly choose</strong> when using the Share sheet or Direct Send feature.</li>
+    </ul>
+
+    <h2>7. Data Retention &amp; Deletion</h2>
+    <ul>
+      <li><strong>Local Data:</strong> You can delete any scanned document inside the App at any time, or uninstall the App to remove all local files and database records.</li>
+      <li><strong>Cloud Data:</strong> You can delete backed-up files from Google Drive using the in-app <em>Manage Cloud Data</em> screen or directly in Google Drive, and revoke App permissions anytime in your Google Account settings.</li>
+      <li><strong>Deletion Requests:</strong> For any data deletion or privacy inquiries, email <a href="mailto:iamfaixaldev@gmail.com">iamfaixaldev@gmail.com</a>.</li>
+    </ul>
+
+    <h2>8. Children&rsquo;s Privacy</h2>
+    <p>
+      IT SCANS is a general productivity utility and is not directed to children under the age of 13. We do not knowingly collect personal information from children under 13.
+    </p>
+
+    <h2>9. Changes to This Policy</h2>
+    <p>
+      We may update this Privacy Policy from time to time. Any updates will be posted on this page with an updated effective date.
+    </p>
+
+    <h2>10. Contact Us</h2>
+    <p>
+      If you have questions about this Privacy Policy or how IT SCANS handles data, contact:<br />
+      <strong>Syed Faisal Majeed</strong> &mdash; <a href="mailto:iamfaixaldev@gmail.com">iamfaixaldev@gmail.com</a>
+    </p>
+  </main>
+</body>
+</html>
